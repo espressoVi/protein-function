@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-import os
 import toml
-import numpy as np
 import networkx as nx
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 config_dict = toml.load("config.toml")['gene-ontology']
 
@@ -38,6 +34,7 @@ class GeneOntology:
     Graph = nx.DiGraph()
     def __init__(self): 
         self.terms = self._load_terms()
+        self.graph = self.make_graph(self.terms)
         self.CC = self.make_graph([term for term in self.terms if term.namespace == "cellular_component"])
         self.MF = self.make_graph([term for term in self.terms if term.namespace == "molecular_function"])
         self.BP = self.make_graph([term for term in self.terms if term.namespace == "biological_process"])

@@ -1,11 +1,9 @@
 name = "Kaggle Protein"
 
 [files]
-TRAIN_DIR = "./data/train"
-TEST_DIR = "./data/test"
-TRAIN_FILE = "train_sequences.fasta"
-TRAIN_TERMS_FILE = "train_terms.tsv"
-TEST_FILE = "test_superset.fasta"
+TRAIN_SEQ = "./data/train/train_sequences.fasta"
+TRAIN_LAB = "./data/train/train_terms.tsv"
+TEST_SEQ = "./data/test/test_superset.fasta"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"

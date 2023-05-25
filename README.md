@@ -8,11 +8,18 @@ This repository contains code to predict protein functions using deep learning.
 
 -----------------------------------------------------
 ## To-Do:
-* Check if entire path is included in training data.
+* Prune tree (maybe).
+* Ensure unseen labels won't appear in test.
+* Each protein should have the most fine-grained label - can query for ancestors.
+* Generate X,Y pair.
+* Design model.
+* Write train loop.
+* Train and get baseline results.
 
 -----------------------------------------------------
 ## Done:
 * Reading and parsing GO into directed graphs.
+* Collected GO, train stats.
 
 -----------------------------------------------------
 ## Files:
