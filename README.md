@@ -1,5 +1,4 @@
 # Protein function prediction (CAFA-5)
------------------------------------------------------
 This repository contains code to predict protein functions using deep learning.
 
 -----------------------------------------------------
