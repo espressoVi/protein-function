@@ -1,11 +1,9 @@
 # Protein function prediction (CAFA-5)
 This repository contains code to predict protein functions using deep learning.
 
------------------------------------------------------
 ## Authors
 - [Soumadeep Saha](https://www.github.com/espressovi)
 
------------------------------------------------------
 ## To-Do:
 * Prune tree (maybe).
 * Ensure unseen labels won't appear in test.
@@ -15,12 +13,10 @@ This repository contains code to predict protein functions using deep learning.
 * Write train loop.
 * Train and get baseline results.
 
------------------------------------------------------
 ## Done:
 * Reading and parsing GO into directed graphs.
 * Collected GO, train stats.
 
------------------------------------------------------
 ## Files:
 - main.py               -> Runs everything.
 - config.toml           -> Configuration file.
@@ -34,7 +30,7 @@ This repository contains code to predict protein functions using deep learning.
   - test                -> Test superset fasta files, etc
   - train               -> Train fasta file, labels, etc
 
------------------------------------------------------
 ## Usage:
-After making sure all required dependencies are installed, try running with.
+After making sure all required dependencies are installed, try running with - 
+
 ``` python main.py```
