@@ -15,10 +15,10 @@ This repository contains code to predict protein functions using deep learning.
   - With rare classes eliminated we have 10,993 BP, 1,470 CC, and 2,438 MF labels.
 
 ## To-Do:
-* Tokenize.
-* Data loader.
-* Write train loop.
+* Write evaluation loop.
 * Train and get baseline results.
+* IA score implementation.
+* Function to write predictions.
 * Deal with unseen labels in test.
 
 ## Done:
@@ -27,13 +27,23 @@ This repository contains code to predict protein functions using deep learning.
 * Prune tree.
 * Each protein has the whole path from the "ancestor" to its label node as the label.
 * Generate X,Y pair.
+* Iterative stratification.
+* Tokenize.
+* Data loader.
+* Write train loop.
+* Basic metrics.
 
 ## Files:
 - main.py               -> Runs everything.
 - config.toml           -> Configuration file.
+- train_test.py         -> Implements training/evaluation routines.
 - utils
   - utils/GO.py         -> Reads the GO file and creates 3 graphs for CC, MF, BP
   - utils/dataset.py    -> Reads the train/test dataset.
+  - utils/metrics.py    -> Implements several basic multi-label metrics.
+  - utils/IterativeStratification.py    -> Iterative Stratification algorithm for train/val multi-label split.
+- models
+  - model.py            -> ProteinBert model with two FC layers (as designed by Debojyoti)
 - data
   - extras              -> Directory for extra files.
     - go_basic.obo      -> Gene Ontology file.
