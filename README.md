@@ -2,20 +2,31 @@
 This repository contains code to predict protein functions using deep learning.
 
 ## Authors
-- [Soumadeep Saha](https://www.github.com/espressovi)
+- [Soumadeep Saha](https://www.github.com/espressovi), Indian Statistical Institute, Kolkata, India
+
+## Problem observations
+- Gene Ontology
+  - There are 43,248 terms 27,942 BP, 11,263 MF, 4,043 CC.
+  - In CC there are 3,167 'leaf' nodes.
+  - In MF there are 9,222 'leaf' nodes.
+- Dataset
+  - There are 5,363,863 annotations with 31,520 distinct labels.
+  - If we only consider labels with >= 10 annotations, the number of distinct labels drops to 14,901.
+  - With rare classes eliminated we have 10,993 BP, 1,470 CC, and 2,438 MF labels.
 
 ## To-Do:
-* Prune tree (maybe).
-* Ensure unseen labels won't appear in test.
-* Each protein should have the most fine-grained label - can query for ancestors.
-* Generate X,Y pair.
-* Design model.
+* Tokenize.
+* Data loader.
 * Write train loop.
 * Train and get baseline results.
+* Deal with unseen labels in test.
 
 ## Done:
 * Reading and parsing GO into directed graphs.
 * Collected GO, train stats.
+* Prune tree.
+* Each protein has the whole path from the "ancestor" to its label node as the label.
+* Generate X,Y pair.
 
 ## Files:
 - main.py               -> Runs everything.

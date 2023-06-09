@@ -7,4 +7,8 @@ TEST_SEQ = "./data/test/test_superset.fasta"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
-NAMESPACES = {'biological_process'=0, 'molecular_function'=1, 'cellular_component'=2}
+NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellular_component'}
+
+[dataset]
+MIN_PROTEINS = 100
+SUB_GRAPHS = ['CC','MF','BP']

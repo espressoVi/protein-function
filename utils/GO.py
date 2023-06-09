@@ -21,7 +21,7 @@ class GoTerm:
                 self.is_obsolete = True
             elif "namespace: " in i:
                 namespace = i.strip().split()[-1]
-                assert namespace in config_dict['NAMESPACES'].keys()
+                assert namespace in config_dict['NAMESPACES'].values()
                 self.namespace = namespace
             elif "name: " in i:
                 self.name = i.strip().split(' ',1)[-1]
@@ -34,10 +34,9 @@ class GeneOntology:
     Graph = nx.DiGraph()
     def __init__(self): 
         self.terms = self._load_terms()
-        self.graph = self.make_graph(self.terms)
-        self.CC = self.make_graph([term for term in self.terms if term.namespace == "cellular_component"])
-        self.MF = self.make_graph([term for term in self.terms if term.namespace == "molecular_function"])
-        self.BP = self.make_graph([term for term in self.terms if term.namespace == "biological_process"])
+        self.full_graph = self.make_graph(self.terms)
+        self.sub_graphs = {abrv:self.make_graph([term for term in self.terms if term.namespace == name])
+                           for abrv,name in config_dict['NAMESPACES'].items()}
     def _load_terms(self):
         with open(config_dict['GO_FILE']) as f:
             raw = f.readlines()

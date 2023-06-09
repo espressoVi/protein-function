@@ -4,8 +4,8 @@ import numpy as np
 from utils.dataset import Dataset
 
 def main():
-    dataset = Dataset()
-    #g = GeneOntology()
+    dataset = Dataset(mode='train',subgraph = None)
+    #dataset = Dataset(mode='train',subgraph = 'CC')
     
 if __name__ == "__main__":
     main()

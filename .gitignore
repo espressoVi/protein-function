@@ -1,6 +1,7 @@
 data/*
 logs/
 cache/*
+code/*
 
 __pycache__/
 *.py[cod]
