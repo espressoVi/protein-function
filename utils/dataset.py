@@ -111,8 +111,8 @@ class Dataset:
     def get_train_dataset(self):
         _, proteins, labels = self.dataset.get_dataset('train')
         # DELETE FOR ACTUAL RUN
-        proteins = proteins[:5000]
-        labels = labels[:5000]
+        # proteins = proteins[:5000]
+        # labels = labels[:5000]
         # UPTO HERE
         proteins = self.tokenize(proteins)
         split = self.get_folds(labels)

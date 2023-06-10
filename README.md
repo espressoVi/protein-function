@@ -15,8 +15,6 @@ This repository contains code to predict protein functions using deep learning.
   - With rare classes eliminated we have 10,993 BP, 1,470 CC, and 2,438 MF labels.
 
 ## To-Do:
-* Write evaluation loop.
-* Train and get baseline results.
 * IA score implementation.
 * Function to write predictions.
 * Deal with unseen labels in test.
@@ -29,9 +27,10 @@ This repository contains code to predict protein functions using deep learning.
 * Generate X,Y pair.
 * Iterative stratification.
 * Tokenize.
-* Data loader.
 * Write train loop.
 * Basic metrics.
+* Write evaluation loop.
+* Train and get baseline results.
 
 ## Files:
 - main.py               -> Runs everything.
