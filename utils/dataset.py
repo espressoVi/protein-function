@@ -51,7 +51,8 @@ class Preprocess:
                 continue
             assert len(nx.descendants(label_graph,node)) == 0
             label_graph.remove_node(node)
-        assert len(list(nx.weakly_connected_components(label_graph))) in [1,len(config_dict['dataset']['SUB_GRAPHS'])]
+        assert len(list(nx.weakly_connected_components(label_graph))) == 1
+        #in [1,len(config_dict['dataset']['SUB_GRAPHS'])]
         return label_graph
     def _idx_to_and_from_go(self):
         idx2go,go2idx = {},{}
@@ -68,16 +69,16 @@ class Preprocess:
             if protein in protein_labels:
                 protein_labels[protein].add(go)
             else:
-                protein_labels[protein] = set([go])
+                protein_labels[protein] = {go}
             protein_labels[protein].update(nx.ancestors(self.label_graph, go))
-        proteins,labels = [],[]
+        protein_names,labels = [],[]
         for protein,label in protein_labels.items():
             label_array = np.zeros(self.class_number,dtype = np.bool)
             for node in label:
                 label_array[self.go2idx[node]] = 1
-            proteins.append(protein)
+            protein_names.append(protein)
             labels.append(label_array)
-        return proteins, np.array(labels)
+        return protein_names, np.array(labels)
     @staticmethod
     def _load_labels():
         """ Reads label file """
