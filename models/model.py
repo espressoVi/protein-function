@@ -19,7 +19,9 @@ class ProtBERT(nn.Module):
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
         return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
     def forward(self, input_ids, attention_masks, labels = None):
-        embeddings = self.protbert(input_ids, attention_mask = attention_masks)['last_hidden_state']
+        with torch.no_grad():
+            embeddings = self.protbert(input_ids, attention_mask = attention_masks)['last_hidden_state'].detach()
+        #embeddings = self.protbert(input_ids, attention_mask = attention_masks)['last_hidden_state']   #Uncomment to retrain BERT
         x = self.average_pool(embeddings, attention_masks)
         x = self.activation(self.fc1(x))
         predicts = torch.sigmoid(self.fc2(x))

@@ -109,11 +109,12 @@ class Dataset:
         self.tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
         self.dataset = Preprocess(subgraph = subgraph)
         self.class_number = self.dataset.class_number
+        self.terms_of_interest = self.dataset.go2idx
     def get_train_dataset(self):
         _, proteins, labels = self.dataset.get_dataset('train')
         # DELETE FOR ACTUAL RUN
-        # proteins = proteins[:5000]
-        # labels = labels[:5000]
+        proteins = proteins[:1000]
+        labels = labels[:1000]
         # UPTO HERE
         proteins = self.tokenize(proteins)
         split = self.get_folds(labels)

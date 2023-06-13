@@ -2,7 +2,12 @@
 import toml
 import numpy as np
 
+config_dict = toml.load("config.toml")
+
 class Metrics:
+    def __init__(self, dataset= None):
+        self.dataset = dataset
+        self.ia_weights = self.parse_ia()
     def _compute_confusion_matrices(self, labels, outputs, ):
         num_recordings, num_classes = np.shape(labels)
         A = np.zeros((num_classes, 2, 2))
@@ -19,6 +24,17 @@ class Metrics:
                 else: # This condition should not happen.
                     raise ValueError('Error in computing the confusion matrix.')
         return A
+
+    def parse_ia(self):
+        ia_file = config_dict['files']['IA']
+        with open(ia_file, 'r') as f:
+            raw = f.readlines()
+        weights = [i.strip().split() for i in raw]
+        weights = {int(i[0].split(':')[-1]):float(i[1]) for i in weights}
+        ia = np.zeros(self.dataset.class_number)
+        for go,idx in self.dataset.terms_of_interest.items():
+            ia[idx] = weights[go]
+        return ia
 
     def macro_f_measure(self, labels, outputs):
         _, num_classes = np.shape(labels)
@@ -41,6 +57,17 @@ class Metrics:
             return float(2 * tp) / float(2 * tp + fp + fn)
         else:
             return float('nan')
+    def weighted_f_measure(self, labels, outputs):
+        intersection = np.logical_and(labels, outputs)
+        n_pred,n_gt = np.sum(outputs, axis=1), np.sum(labels, axis=1)
+        wn_gt = (labels*self.ia_weights).sum(axis=1)
+        wn_pred = (outputs*self.ia_weights).sum(axis=1)
+        wn_intersection = (intersection*self.ia_weights).sum(axis=1)
+        pr = np.where(n_pred>0, wn_intersection/wn_pred, 0).sum()/(np.where(n_pred>0,1,0).sum())
+        rc = np.where(n_gt>0,wn_intersection/wn_gt,0).sum()/(np.where(n_gt>0,1,0).sum())
+        n = 2*pr*rc
+        d = pr+rc
+        return np.divide(n, d, out=np.zeros_like(n, dtype=float), where=d != 0)
 
     def subset_accuracy(self, labels, outputs):
         num_recordings, num_classes = np.shape(labels)
@@ -81,7 +108,8 @@ class Metrics:
                 'F1': lambda x,y : self.f_measure(x,y),
                 'Accuracy': lambda x,y : self.accuracy(x,y),
                 'SubsetAccuracy': lambda x,y : self.subset_accuracy(x,y),
-                'Hamming Loss': lambda x,y : self.hamming_loss(x,y),}
+                'Hamming Loss': lambda x,y : self.hamming_loss(x,y),
+                'CAFAMetric': lambda x,y : self.weighted_f_measure(x,y),}
 
     def compute(self, labels, outputs):
         res = dict()
@@ -93,5 +121,3 @@ class Metrics:
         res = self.compute(labels, outputs)
         answer = [f"{key} = {value:.4f} | " for key,value in res.items()]
         return ''.join(answer)
-
-metrics = Metrics()

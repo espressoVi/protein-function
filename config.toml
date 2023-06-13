@@ -4,6 +4,7 @@ name = "Kaggle Protein"
 TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
+IA = "./data/extras/IA.txt"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
@@ -16,9 +17,9 @@ N_FOLDS = 10
 MAX_SEQ_LEN = 2048
 
 [train]
-MINI_BATCH_SIZE = 2
+MINI_BATCH_SIZE = 8
 TEST_BATCH_SIZE = 4
-ACCUMULATE = 16
+ACCUMULATE = 4#32//MINI_BATCH_SIZE
 LR = 1e-5
 EPOCHS = 3
 
