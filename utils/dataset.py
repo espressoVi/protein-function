@@ -14,7 +14,7 @@ files = config_dict['files']
 
 class Preprocess:
     def __init__(self, subgraph = None):
-        assert subgraph in config_dict['dataset']['SUB_GRAPHS'] or subgraph is None
+        assert subgraph in config_dict['dataset']['SUB_GRAPHS']
         self._train_labels = self._load_labels()
         self.label_graph = self._graph_prune(subgraph,self._train_labels,)
         self.class_number = len(self.label_graph)
@@ -113,8 +113,8 @@ class Dataset:
     def get_train_dataset(self):
         _, proteins, labels = self.dataset.get_dataset('train')
         # DELETE FOR ACTUAL RUN
-        proteins = proteins[:1000]
-        labels = labels[:1000]
+        #proteins = proteins[:1000]
+        #labels = labels[:1000]
         # UPTO HERE
         proteins = self.tokenize(proteins)
         split = self.get_folds(labels)
@@ -137,6 +137,17 @@ class Dataset:
                           padding = "max_length", truncation = True, return_tensors = 'pt',)
         print(f"Tokenization took {perf_counter() - _time_start:.2f}s")
         return sequences
+    def fill(self, predictions):
+        rv = []
+        for pred in predictions:
+            prediction = np.zeros_like(pred, dtype = np.bool)
+            for idx in np.where(pred == 1)[0]:
+                anc = np.array([self.dataset.go2idx[i] for i in nx.ancestors(self.dataset.label_graph,
+                             self.dataset.idx2go[idx])]).astype(int)
+                prediction[anc] = 1
+                prediction[idx] = 1
+            rv.append(prediction)
+        return np.array(rv)
     @staticmethod
     def get_folds(labels):
         return np.where(IterativeStratification(labels, n_splits=config_dict['dataset']['N_FOLDS']) == 0, True, False)

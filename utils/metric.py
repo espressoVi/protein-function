@@ -63,7 +63,7 @@ class Metrics:
         wn_gt = (labels*self.ia_weights).sum(axis=1)
         wn_pred = (outputs*self.ia_weights).sum(axis=1)
         wn_intersection = (intersection*self.ia_weights).sum(axis=1)
-        pr = np.where(n_pred>0, wn_intersection/wn_pred, 0).sum()/(np.where(n_pred>0,1,0).sum())
+        pr = np.where(wn_pred>0, wn_intersection/wn_pred, 0).sum()/(np.where(n_pred>0,1,0).sum())
         rc = np.where(n_gt>0,wn_intersection/wn_gt,0).sum()/(np.where(n_gt>0,1,0).sum())
         n = 2*pr*rc
         d = pr+rc

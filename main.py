@@ -13,11 +13,7 @@ def manager():
     metric = Metrics(dataset)
     model = ProtBERT(dataset.class_number)
     model.send(device)
-
-    """ train_dataset, val_dataset are torch TensorDatasets
-    which contains (input_ids, attention_masks, labels). """
-    train_dataset, val_dataset = dataset.get_train_dataset()
-    train(model, device, train_dataset, val_dataset, metric)
+    train(model, device, dataset, metric)
     """ test_dataset contains (input_ids, attention_masks) names 
     contains name of proteins corresponding to input_ids. """
     test_dataset, names = dataset.get_test_dataset()
