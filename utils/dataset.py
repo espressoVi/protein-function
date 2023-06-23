@@ -13,7 +13,7 @@ config_dict = toml.load("config.toml")
 files = config_dict['files']
 
 class Preprocess:
-    def __init__(self, subgraph = None):
+    def __init__(self, subgraph):
         assert subgraph in config_dict['dataset']['SUB_GRAPHS']
         self._train_labels = self._load_labels()
         self.label_graph = self._graph_prune(subgraph,self._train_labels,)
@@ -31,7 +31,7 @@ class Preprocess:
     @staticmethod
     def _graph_prune(subgraph, labels):
         """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
-        label_graph = GeneOntology().full_graph if subgraph is None else GeneOntology().sub_graphs[subgraph]
+        label_graph = GeneOntology().sub_graphs[subgraph]
         min_proteins = config_dict['dataset']['MIN_PROTEINS']
         _count = {}
         for protein, go in tqdm(labels, desc = "Pruning graph"):
