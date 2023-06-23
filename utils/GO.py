@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import toml
 import networkx as nx
+from tqdm import tqdm
 
-config_dict = toml.load("config.toml")['gene-ontology']
+config_dict = toml.load("config.toml")
 
 class GoTerm:
     def __init__(self, term_string):
@@ -24,7 +25,6 @@ class GoTerm:
                 self.is_obsolete = True
             elif "namespace: " in i:
                 namespace = i.strip().split()[-1]
-                assert namespace in config_dict['NAMESPACES'].values()
                 self.namespace = namespace
             elif "name: " in i:
                 self.name = i.strip().split(' ',1)[-1]
@@ -35,13 +35,16 @@ class GoTerm:
 
 class GeneOntology:
     Graph = nx.DiGraph()
-    def __init__(self): 
-        self.terms = self._load_terms()
-        self.full_graph = self.make_graph(self.terms)
-        self.sub_graphs = {abrv:self.make_graph([term for term in self.terms if term.namespace == name])
-                           for abrv,name in config_dict['NAMESPACES'].items()}
+    def __init__(self, subgraph): 
+        assert subgraph in config_dict['gene-ontology']['NAMESPACES']
+        self._subgraph = subgraph
+        _name = config_dict['gene-ontology']['NAMESPACES'][subgraph]
+        terms = [term for term in self._load_terms() if term.namespace == _name]
+        base_graph = self.make_graph(terms)
+        self.labels = [(protein,go) for protein, go in self._load_labels() if go in base_graph]
+        self.Graph = self._graph_prune(base_graph)
     def _load_terms(self):
-        with open(config_dict['GO_FILE']) as f:
+        with open(config_dict['gene-ontology']['GO_FILE']) as f:
             raw = f.readlines()
         rv,term = [],[]
         append_state = False
@@ -60,3 +63,46 @@ class GeneOntology:
         return rv
     def make_graph(self, terms):
         return nx.DiGraph([(source,term.go_id) for term in terms for source in term.is_a])
+    def _graph_prune(self, graph):
+        """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
+        min_proteins = config_dict['dataset']['MIN_PROTEINS']
+        self.ancestors = {}
+        def find_ancestors(node):
+            if node in self.ancestors:
+                return self.ancestors[node]
+            predecessors = list(graph.predecessors(node))
+            if len(predecessors) == 0:
+                self.ancestors[node] = {node}
+                return {node}
+            ancs = {node}
+            for nd in predecessors:
+                ancs = ancs.union(find_ancestors(nd))
+            self.ancestors[node] = ancs
+            return ancs
+        _count = {}
+        for protein, go in tqdm(self.labels, desc = "Pruning graph"):
+            for node in find_ancestors(go):
+                if node in _count:
+                    _count[node].add(protein)
+                else:
+                    _count[node] = {protein}
+        for node in reversed(list(nx.topological_sort(graph))):
+            if node not in _count or len(_count[node]) < min_proteins:
+                graph.remove_node(node)
+        assert len(list(nx.weakly_connected_components(graph))) == 1
+        return graph
+    @staticmethod
+    def _load_labels():
+        """ Reads label file """
+        with open(config_dict['files']['TRAIN_LAB'],'r') as f:
+            labels = f.readlines()[1:]
+        rv = []
+        for lab in tqdm(labels, desc = "Reading labels"):
+            row = lab.strip().split('\t')[:2]
+            rv.append((row[0],int(row[1].split(':')[-1])))
+        return rv
+
+def main():
+    print(GeneOntology('BP').Graph)
+if __name__ == "__main__":
+    main()

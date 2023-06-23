@@ -14,8 +14,8 @@ files = config_dict['files']
 
 class Preprocess:
     def __init__(self, subgraph):
-        assert subgraph in config_dict['dataset']['SUB_GRAPHS']
-        self._train_labels = self._load_labels()
+        self.GO = GeneOntology(subgraph)
+        self._train_labels = self.GO.
         self.label_graph = self._graph_prune(subgraph,self._train_labels,)
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
@@ -28,32 +28,7 @@ class Preprocess:
         train_protein_names,train_labels = self._get_protein_labels(self._train_labels)
         train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
         return train_protein_names, train_proteins, torch.tensor(train_labels)
-    @staticmethod
-    def _graph_prune(subgraph, labels):
-        """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
-        label_graph = GeneOntology().sub_graphs[subgraph]
-        min_proteins = config_dict['dataset']['MIN_PROTEINS']
-        _count = {}
-        for protein, go in tqdm(labels, desc = "Pruning graph"):
-            if go not in label_graph:
-                continue
-            nodes = {go}.union(nx.ancestors(label_graph,go))
-            for node in nodes:
-                if node in _count:
-                    _count[node].add(protein)
-                else:
-                    _count[node] = {protein}
-        for node in reversed(list(nx.topological_sort(label_graph))):
-            if node not in _count:
-                label_graph.remove_node(node)
-                continue
-            if len(_count[node]) >= min_proteins:
-                continue
-            assert len(nx.descendants(label_graph,node)) == 0
-            label_graph.remove_node(node)
-        assert len(list(nx.weakly_connected_components(label_graph))) == 1
-        #in [1,len(config_dict['dataset']['SUB_GRAPHS'])]
-        return label_graph
+
     def _idx_to_and_from_go(self):
         idx2go,go2idx = {},{}
         for idx,node in enumerate(nx.topological_sort(self.label_graph)):
@@ -79,16 +54,6 @@ class Preprocess:
             protein_names.append(protein)
             labels.append(label_array)
         return protein_names, np.array(labels)
-    @staticmethod
-    def _load_labels():
-        """ Reads label file """
-        with open(files['TRAIN_LAB'],'r') as f:
-            labels = f.readlines()[1:]
-        rv = []
-        for lab in tqdm(labels, desc = "Reading labels"):
-            row = lab.strip().split('\t')[:2]
-            rv.append((row[0],int(row[1].split(':')[-1])))
-        return rv
     @staticmethod
     def _load_proteins(mode = 'train'):
         """ Reads fasta file and loads sequences. """

@@ -12,7 +12,6 @@ NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellul
 
 [dataset]
 MIN_PROTEINS = 100
-SUB_GRAPHS = ['CC','MF','BP']
 N_FOLDS = 10
 MAX_SEQ_LEN = 2048
 
