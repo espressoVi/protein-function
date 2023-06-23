@@ -17,6 +17,9 @@ class GoTerm:
             if "is_a: " in i:
                 entry = int(i.strip().split(" ")[1].split(":")[1])
                 self.is_a.append(entry)
+            elif "relationship: part_of " in i:
+                entry = int(i.strip().split(" ")[2].split(":")[1])
+                self.is_a.append(entry)
             elif "is_obsolete: true" in i:
                 self.is_obsolete = True
             elif "namespace: " in i:
