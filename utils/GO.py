@@ -89,6 +89,8 @@ class GeneOntology:
         for node in reversed(list(nx.topological_sort(graph))):
             if node not in _count or len(_count[node]) < min_proteins:
                 graph.remove_node(node)
+                if node in self.ancestors:
+                    del self.ancestors[node]
         assert len(list(nx.weakly_connected_components(graph))) == 1
         return graph
     @staticmethod
@@ -102,7 +104,3 @@ class GeneOntology:
             rv.append((row[0],int(row[1].split(':')[-1])))
         return rv
 
-def main():
-    print(GeneOntology('BP').Graph)
-if __name__ == "__main__":
-    main()

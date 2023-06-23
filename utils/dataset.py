@@ -15,8 +15,8 @@ files = config_dict['files']
 class Preprocess:
     def __init__(self, subgraph):
         self.GO = GeneOntology(subgraph)
-        self._train_labels = self.GO.
-        self.label_graph = self._graph_prune(subgraph,self._train_labels,)
+        self._train_labels = self.GO.labels
+        self.label_graph = self.GO.Graph
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
     def get_dataset(self, mode):
@@ -28,7 +28,6 @@ class Preprocess:
         train_protein_names,train_labels = self._get_protein_labels(self._train_labels)
         train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
         return train_protein_names, train_proteins, torch.tensor(train_labels)
-
     def _idx_to_and_from_go(self):
         idx2go,go2idx = {},{}
         for idx,node in enumerate(nx.topological_sort(self.label_graph)):
@@ -45,10 +44,10 @@ class Preprocess:
                 protein_labels[protein].add(go)
             else:
                 protein_labels[protein] = {go}
-            protein_labels[protein].update(nx.ancestors(self.label_graph, go))
+            protein_labels[protein].update(self.GO.ancestors[go])
         protein_names,labels = [],[]
         for protein,label in protein_labels.items():
-            label_array = np.zeros(self.class_number,dtype = np.bool)
+            label_array = np.zeros(self.class_number,dtype = bool)
             for node in label:
                 label_array[self.go2idx[node]] = 1
             protein_names.append(protein)
@@ -105,12 +104,10 @@ class Dataset:
     def fill(self, predictions):
         rv = []
         for pred in predictions:
-            prediction = np.zeros_like(pred, dtype = np.bool)
+            prediction = np.zeros_like(pred, dtype = bool)
             for idx in np.where(pred == 1)[0]:
-                anc = np.array([self.dataset.go2idx[i] for i in nx.ancestors(self.dataset.label_graph,
-                             self.dataset.idx2go[idx])]).astype(int)
+                anc = np.array([self.dataset.go2idx[i] for i in self.dataset.GO.ancestors[self.dataset.idx2go[idx]]]).astype(int)
                 prediction[anc] = 1
-                prediction[idx] = 1
             rv.append(prediction)
         return np.array(rv)
     @staticmethod
