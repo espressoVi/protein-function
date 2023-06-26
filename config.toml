@@ -5,6 +5,7 @@ TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
 IA = "./data/extras/IA.txt"
+EMBEDS = "./data/embeds.pkl"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
@@ -17,10 +18,11 @@ MAX_SEQ_LEN = 2048
 
 [train]
 MINI_BATCH_SIZE = 8
-TEST_BATCH_SIZE = 4
+TEST_BATCH_SIZE = 8
 ACCUMULATE = 4#32//MINI_BATCH_SIZE
 LR = 1e-3
-EPOCHS = 3
+EPOCHS = 8
 
 [model]
 HIDDEN_DIM = 1024
+BERT = "Rostlab/prot_bert"

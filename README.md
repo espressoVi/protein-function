@@ -14,7 +14,13 @@ This repository contains code to predict protein functions using deep learning.
   - If we only consider labels with >= 10 annotations, the number of distinct labels drops to 14,901.
   - With rare classes eliminated we have 10,993 BP, 1,470 CC, and 2,438 MF labels.
 
+## Benchmarks
+  - CC : MicroF1 = 0.6835 | MacroF1 = 0.2734 | F1 = 0.6883 | Accuracy = 0.5645 | SubsetAccuracy = 0.0965 | Hamming Loss = 0.0154 | CAFAMetric = 0.5911 
+  - BP : MicroF1 = 0.4180 | MacroF1 = 0.1620 | F1 = 0.3956 | Accuracy = 0.2718 | SubsetAccuracy = 0.0042 | Hamming Loss = 0.0123 | CAFAMetric = 0.3865 |
+  - MF : MicroF1 = 0.6639 | MacroF1 = 0.3678 | F1 = 0.6893 | Accuracy = 0.5803 | SubsetAccuracy = 0.1945 | Hamming Loss = 0.0093 | CAFAMetric = 0.6464 |
+
 ## To-Do:
+* Optimize tuning and inference routine.
 * Function to write predictions.
 * Deal with unseen labels in test.
 
@@ -31,6 +37,10 @@ This repository contains code to predict protein functions using deep learning.
 * Write evaluation loop.
 * Train and get baseline results.
 * IA score implementation.
+* Optimized graph pruning.
+* Move pruning to GO, start with reduced graph.
+* Optimized inference routine (ancestor fill).
+* Load embeddings from memory.
 
 ## Files:
 - main.py               -> Runs everything.

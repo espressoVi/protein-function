@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import os,re,toml,torch
-from utils.GO import GeneOntology 
 import networkx as nx
 import numpy as np
 from tqdm import tqdm
-from transformers import BertTokenizer
+import pickle
 from utils.IterativeStratification import IterativeStratification
+from utils.tokenizer import Tokenizer
+from utils.GO import GeneOntology 
 from torch.utils.data import TensorDataset
-from time import perf_counter
 
 config_dict = toml.load("config.toml")
 files = config_dict['files']
+
 
 class Preprocess:
     def __init__(self, subgraph):
@@ -19,15 +20,26 @@ class Preprocess:
         self.label_graph = self.GO.Graph
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
-    def get_dataset(self, mode):
+        self.tokenizer = Tokenizer()
+    def get_dataset(self, mode, finetune = False):
         """ Returns lists of protein sequences, their names and their labels (if applicable) """
         p_dict = self._load_proteins(mode)
         if mode == 'test':
             test_protein_names, test_proteins = [list(i) for i in list(zip(*p_dict.items()))]
-            return test_protein_names, test_proteins
+            test_input_ids, test_attention_masks = self.tokenizer.tokenize(test_proteins)
+            return test_protein_names, test_input_ids, test_attention_masks
         train_protein_names,train_labels = self._get_protein_labels(self._train_labels)
-        train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
-        return train_protein_names, train_proteins, torch.tensor(train_labels)
+        if finetune:
+            train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
+            train_input_ids, train_attention_masks = self.tokenizer.tokenize(train_proteins)
+            return train_protein_names, train_input_ids, train_attention_masks, torch.tensor(train_labels)
+        embeddings = self._get_embeddings()
+        train_embeddings = torch.tensor(np.array([embeddings[name] for name in train_protein_names]))
+        return train_protein_names, torch.tensor(train_embeddings), torch.tensor(train_labels)
+    def _get_embeddings(self):
+        with open(config_dict['files']['EMBEDS'], 'rb') as f:
+            emb = pickle.load(f)
+        return emb
     def _idx_to_and_from_go(self):
         idx2go,go2idx = {},{}
         for idx,node in enumerate(nx.topological_sort(self.label_graph)):
@@ -69,38 +81,32 @@ class Preprocess:
         return sequences
 
 class Dataset:
-    def __init__(self, subgraph = None):
-        self.tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
+    def __init__(self, subgraph = None, finetune = False):
         self.dataset = Preprocess(subgraph = subgraph)
         self.class_number = self.dataset.class_number
         self.terms_of_interest = self.dataset.go2idx
+        self.finetune = finetune
     def get_train_dataset(self):
-        _, proteins, labels = self.dataset.get_dataset('train')
-        # DELETE FOR ACTUAL RUN
-        #proteins = proteins[:1000]
-        #labels = labels[:1000]
-        # UPTO HERE
-        proteins = self.tokenize(proteins)
-        split = self.get_folds(labels)
-        train_input_ids, val_input_ids = self._train_val_split(proteins['input_ids'],split)
-        train_attention_masks, val_attention_masks = self._train_val_split(proteins['attention_mask'],split)
-        train_labels, val_labels = self._train_val_split(labels, split)
-        train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
-        val_dataset = TensorDataset(val_input_ids, val_attention_masks, val_labels)
+        if self.finetune:
+            _, input_ids, attention_masks, labels = self.dataset.get_dataset('train', True)
+            split = self.get_folds(labels)
+            train_input_ids, val_input_ids = self._train_val_split(input_ids,split)
+            train_attention_masks, val_attention_masks = self._train_val_split(attention_masks,split)
+            train_labels, val_labels = self._train_val_split(labels, split)
+            train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
+            val_dataset = TensorDataset(val_input_ids, val_attention_masks, val_labels)
+        else:
+            _, embeddings, labels = self.dataset.get_dataset('train', False)
+            split = self.get_folds(labels)
+            train_embeddings, val_embeddings = self._train_val_split(embeddings, split)
+            train_labels, val_labels = self._train_val_split(labels, split)
+            train_dataset = TensorDataset(train_embeddings, train_labels)
+            val_dataset = TensorDataset(val_embeddings, val_labels)
         return train_dataset, val_dataset
     def get_test_dataset(self):
-        protein_names, proteins = self.dataset.get_dataset('test')
-        proteins = self.tokenize(proteins)
-        test_dataset = TensorDataset(proteins['input_ids'], proteins['attention_mask'])
+        protein_names, input_ids, attention_masks = self.dataset.get_dataset('test')
+        test_dataset = TensorDataset(input_ids, attention_mask)
         return test_dataset, protein_names 
-    def tokenize(self, sequences):
-        _time_start = perf_counter()
-        print("Tokenizing...",end = '\r')
-        sequences = [" ".join(list(re.sub(r"[UZOB]", "X", sequence))) for sequence in sequences]
-        sequences = self.tokenizer(sequences, max_length = config_dict['dataset']['MAX_SEQ_LEN'],
-                          padding = "max_length", truncation = True, return_tensors = 'pt',)
-        print(f"Tokenization took {perf_counter() - _time_start:.2f}s")
-        return sequences
     def fill(self, predictions):
         rv = []
         for pred in predictions:

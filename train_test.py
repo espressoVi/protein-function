@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import torch,toml
+import torch,toml,re
 import numpy as np
 from torch.utils.data import DataLoader, SequentialSampler
 from torch.optim import AdamW
@@ -14,8 +14,7 @@ def train(model, device, dataset, metrics):
     """ train_dataset, val_dataset are torch TensorDatasets
     which contains (input_ids, attention_masks, labels). """
     train_dataloader = DataLoader(train_dataset, batch_size = train_param['MINI_BATCH_SIZE'], shuffle = True, )
-    optimizer_parameters = [param for name, param in model.named_parameters() if 'protbert' not in name]
-    #optimizer_parameters = model.parameters()
+    optimizer_parameters = model.parameters()
     optimizer = AdamW(optimizer_parameters, lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-4)
     epochs = train_param['EPOCHS']
     counter, train_loss, loss = 1, 0.0,0.0
@@ -25,10 +24,7 @@ def train(model, device, dataset, metrics):
         for i,batch in enumerate(epoch_iterator):
             model.train()
             batch = tuple(t.to(device) for t in batch)
-            inputs = { "input_ids": batch[0],
-                      "attention_masks": batch[1],
-                      "labels":batch[2],}
-            loss, predicts = model(**inputs)
+            loss, predicts = model(*batch)
             train_loss += loss.item()
             loss.backward()
             if (i+1)%train_param['ACCUMULATE'] == 0:
@@ -37,7 +33,7 @@ def train(model, device, dataset, metrics):
             counter += 1
             epoch_iterator.set_description("Loss :%f" % (train_loss/counter))
             epoch_iterator.refresh()
-        evaluate(model, device, val_dataset, infer, metrics)
+    evaluate(model, device, val_dataset, infer, metrics)
 
 def evaluate(model, device, val_dataset, infer, metrics):
     eval_dataloader = DataLoader(val_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False, )
@@ -46,12 +42,10 @@ def evaluate(model, device, val_dataset, infer, metrics):
     model.eval()
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
         batch = tuple(t.to(device) for t in batch)
-        inputs = { "input_ids": batch[0],
-                  "attention_masks": batch[1]}
         with torch.no_grad():
-            pred = model(**inputs)
+            pred = model(*batch)
         pred_batch = pred.detach().cpu().numpy()
-        label_batch = batch[2].detach().cpu().numpy()
+        label_batch = batch[-1].detach().cpu().numpy()
         preds.extend(pred_batch)
         labels.extend(label_batch)
     preds,labels = np.array(preds),np.array(labels)
@@ -60,9 +54,11 @@ def evaluate(model, device, val_dataset, infer, metrics):
     print(metrics.eval_and_show(labels, outputs))
 
 def find_threshold(metric, labels, preds, infer):
-    best = 0
-    for i in tqdm(np.linspace(0.1,np.amax(preds),100), desc="Tuning threshold"):
+    best, threshold = 0, 0
+    for i in tqdm(np.linspace(0.1,np.amax(preds),100), desc = "Tuning"):
         score = metric(labels, infer((preds>i).astype(int)))
+        if np.isnan(score):
+            continue
         if score > best:
             best = score 
             threshold = i
