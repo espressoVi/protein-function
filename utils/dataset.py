@@ -21,6 +21,7 @@ class Preprocess:
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
         self.tokenizer = Tokenizer()
+        self.IA = self._parse_ia()
     def get_dataset(self, mode, finetune = False):
         """ Returns lists of protein sequences, their names and their labels (if applicable) """
         p_dict = self._load_proteins(mode)
@@ -35,7 +36,7 @@ class Preprocess:
             return train_protein_names, train_input_ids, train_attention_masks, torch.tensor(train_labels)
         embeddings = self._get_embeddings()
         train_embeddings = torch.tensor(np.array([embeddings[name] for name in train_protein_names]))
-        return train_protein_names, torch.tensor(train_embeddings), torch.tensor(train_labels)
+        return train_protein_names, train_embeddings, torch.tensor(train_labels)
     def _get_embeddings(self):
         with open(config_dict['files']['EMBEDS'], 'rb') as f:
             emb = pickle.load(f)
@@ -65,6 +66,15 @@ class Preprocess:
             protein_names.append(protein)
             labels.append(label_array)
         return protein_names, np.array(labels)
+    def _parse_ia(self):
+        with open(config_dict['files']['IA'], 'r') as f:
+            raw = f.readlines()
+        weights = [i.strip().split() for i in raw]
+        weights = {int(i[0].split(':')[-1]):float(i[1]) for i in weights}
+        ia = np.zeros(len(self.go2idx), dtype=float)
+        for go,idx in self.go2idx.items():
+            ia[idx] = weights[go]
+        return ia
     @staticmethod
     def _load_proteins(mode = 'train'):
         """ Reads fasta file and loads sequences. """
@@ -83,8 +93,8 @@ class Preprocess:
 class Dataset:
     def __init__(self, subgraph = None, finetune = False):
         self.dataset = Preprocess(subgraph = subgraph)
+        self.IA = self.dataset.IA
         self.class_number = self.dataset.class_number
-        self.terms_of_interest = self.dataset.go2idx
         self.finetune = finetune
     def get_train_dataset(self):
         if self.finetune:
@@ -129,3 +139,6 @@ class Dataset:
             val_arr = arr[idx]
             train_arr = arr[torch.logical_not(idx)]
         return train_arr, val_arr
+    
+if __name__ == "__main__":
+    main()

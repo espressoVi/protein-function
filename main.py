@@ -13,13 +13,13 @@ def generate_pretrained_embeddings(device):
     save_embeddings(model, device)
 
 def finetune(device, dataset):
-    metric = Metrics(dataset)
+    metric = Metrics(dataset.IA)
     model = Finetune(dataset.class_number)
     model.send(device)
     train(model, device, dataset, metric)
 
 def traintop(device, dataset):
-    metric = Metrics(dataset)
+    metric = Metrics(dataset.IA)
     model = Top(dataset.class_number)
     model.to(device)
     train(model, device, dataset, metric)
@@ -39,7 +39,7 @@ def manager(device, dataset, **kwargs):
         finetune(device, dataset)
 
 def main():
-    subgraph = "MF"
+    subgraph = "BP"
     options = {'generate_embeddings':False, 'train':True, 'finetune':False}
     assert torch.cuda.is_available()
     device = torch.device("cuda")

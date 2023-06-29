@@ -3,6 +3,7 @@ import torch,toml,re
 import numpy as np
 from torch.utils.data import DataLoader, SequentialSampler
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR as Scheduler
 from tqdm import trange,tqdm
 
 config_dict = toml.load("config.toml")
@@ -17,9 +18,10 @@ def train(model, device, dataset, metrics):
     optimizer_parameters = model.parameters()
     optimizer = AdamW(optimizer_parameters, lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-4)
     epochs = train_param['EPOCHS']
+    scheduler = Scheduler(optimizer, epochs)
     counter, train_loss, loss = 1, 0.0,0.0
     model.zero_grad()
-    for _ in trange(int(epochs), desc="Epoch"):
+    for epoch_number in range(int(epochs)):
         epoch_iterator = tqdm(train_dataloader, desc="Iteration")
         for i,batch in enumerate(epoch_iterator):
             model.train()
@@ -31,13 +33,15 @@ def train(model, device, dataset, metrics):
                 optimizer.step()
                 model.zero_grad()
             counter += 1
-            epoch_iterator.set_description("Loss :%f" % (train_loss/counter))
+            epoch_iterator.set_description(f"Epoch [{epoch_number+1}/{epochs}] Loss : {train_loss/counter:.6f}")
             epoch_iterator.refresh()
-    evaluate(model, device, val_dataset, infer, metrics)
+        scheduler.step()
+        if (epoch_number+1)%10 == 0:
+            evaluate(model, device, val_dataset, infer, metrics)
 
 def evaluate(model, device, val_dataset, infer, metrics):
     eval_dataloader = DataLoader(val_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False, )
-    F1 = metrics.metrics['CAFAMetric']
+    metric = metrics.metrics['CAFAMetric']
     preds, labels = [],[]
     model.eval()
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
@@ -49,17 +53,16 @@ def evaluate(model, device, val_dataset, infer, metrics):
         preds.extend(pred_batch)
         labels.extend(label_batch)
     preds,labels = np.array(preds),np.array(labels)
-    threshold = find_threshold(F1, labels, preds, infer)
+    threshold = find_threshold(metric, labels, preds, infer)
     outputs = infer((preds>threshold).astype(int))
     print(metrics.eval_and_show(labels, outputs))
 
 def find_threshold(metric, labels, preds, infer):
     best, threshold = 0, 0
-    for i in tqdm(np.linspace(0.1,np.amax(preds),100), desc = "Tuning"):
-        score = metric(labels, infer((preds>i).astype(int)))
-        if np.isnan(score):
-            continue
-        if score > best:
+    for i in tqdm(np.linspace(0.1, min(0.99,np.amax(preds)),100), desc="Tuning threshold"):
+        outputs = (preds>i).astype(bool)
+        score = metric(labels, infer(outputs))
+        if not np.isnan(score) and score > best:
             best = score 
             threshold = i
     return threshold

@@ -15,12 +15,11 @@ This repository contains code to predict protein functions using deep learning.
   - With rare classes eliminated we have 10,993 BP, 1,470 CC, and 2,438 MF labels.
 
 ## Benchmarks
-  - CC : MicroF1 = 0.6835 | MacroF1 = 0.2734 | F1 = 0.6883 | Accuracy = 0.5645 | SubsetAccuracy = 0.0965 | Hamming Loss = 0.0154 | CAFAMetric = 0.5911 
-  - BP : MicroF1 = 0.4180 | MacroF1 = 0.1620 | F1 = 0.3956 | Accuracy = 0.2718 | SubsetAccuracy = 0.0042 | Hamming Loss = 0.0123 | CAFAMetric = 0.3865 |
-  - MF : MicroF1 = 0.6639 | MacroF1 = 0.3678 | F1 = 0.6893 | Accuracy = 0.5803 | SubsetAccuracy = 0.1945 | Hamming Loss = 0.0093 | CAFAMetric = 0.6464 |
+  - CC : MicroF1 = 0.6964 | MacroF1 = 0.3712 | F1 = 0.6993 | Accuracy = 0.5804 | SubsetAccuracy = 0.1140 | Hamming Loss = 0.0155 | CAFAMetric = 0.6152 |
+  - BP : MicroF1 = 0.4664 | MacroF1 = 0.2812 | F1 = 0.4416 | Accuracy = 0.3188 | SubsetAccuracy = 0.0091 | Hamming Loss = 0.0122 | CAFAMetric = 0.4393 |
+  - MF : MicroF1 = 0.6988 | MacroF1 = 0.4751 | F1 = 0.7216 | Accuracy = 0.6221 | SubsetAccuracy = 0.2456 | Hamming Loss = 0.0083 | CAFAMetric = 0.6825 |
 
 ## To-Do:
-* Optimize tuning and inference routine.
 * Function to write predictions.
 * Deal with unseen labels in test.
 
@@ -41,6 +40,8 @@ This repository contains code to predict protein functions using deep learning.
 * Move pruning to GO, start with reduced graph.
 * Optimized inference routine (ancestor fill).
 * Load embeddings from memory.
+* Optimize metric calculations.
+* Implement scheduler, and saturate train.
 
 ## Files:
 - main.py               -> Runs everything.
