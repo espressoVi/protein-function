@@ -41,7 +41,7 @@ class GeneOntology:
         _name = config_dict['gene-ontology']['NAMESPACES'][subgraph]
         terms = [term for term in self._load_terms() if term.namespace == _name]
         base_graph = self.make_graph(terms)
-        self.labels = [(protein,go) for protein, go in self._load_labels() if go in base_graph]
+        self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
         self.Graph = self._graph_prune(base_graph)
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
@@ -94,7 +94,7 @@ class GeneOntology:
         assert len(list(nx.weakly_connected_components(graph))) == 1
         return graph
     @staticmethod
-    def _load_labels():
+    def load_labels():
         """ Reads label file """
         with open(config_dict['files']['TRAIN_LAB'],'r') as f:
             labels = f.readlines()[1:]

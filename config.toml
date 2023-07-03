@@ -6,6 +6,8 @@ TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
 IA = "./data/extras/IA.txt"
 EMBEDS = "./data/embeds.pkl"
+EMBEDS_TEST = "./data/embeds_test.pkl"
+SUBMIT = "./submit/submission.tsv"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"

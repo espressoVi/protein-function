@@ -17,6 +17,7 @@ class Preprocess:
     def __init__(self, subgraph):
         self.GO = GeneOntology(subgraph)
         self._train_labels = self.GO.labels
+        #self._train_labels = self.GO.load_labels()
         self.label_graph = self.GO.Graph
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
@@ -27,16 +28,17 @@ class Preprocess:
         p_dict = self._load_proteins(mode)
         if mode == 'test':
             test_protein_names, test_proteins = [list(i) for i in list(zip(*p_dict.items()))]
-            test_input_ids, test_attention_masks = self.tokenizer.tokenize(test_proteins)
-            return test_protein_names, test_input_ids, test_attention_masks
+            #test_input_ids, test_attention_masks = self.tokenizer.tokenize(test_proteins)
+            #return test_protein_names, test_input_ids, test_attention_masks
+            return test_protein_names, None, None
         train_protein_names,train_labels = self._get_protein_labels(self._train_labels)
         if finetune:
             train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
             train_input_ids, train_attention_masks = self.tokenizer.tokenize(train_proteins)
-            return train_protein_names, train_input_ids, train_attention_masks, torch.tensor(train_labels)
+            return train_protein_names, train_input_ids, train_attention_masks, train_labels
         embeddings = self._get_embeddings()
         train_embeddings = torch.tensor(np.array([embeddings[name] for name in train_protein_names]))
-        return train_protein_names, train_embeddings, torch.tensor(train_labels)
+        return train_protein_names, train_embeddings, train_labels
     def _get_embeddings(self):
         with open(config_dict['files']['EMBEDS'], 'rb') as f:
             emb = pickle.load(f)
@@ -52,6 +54,7 @@ class Preprocess:
         protein_labels = {}
         for protein,go in tqdm(labels,desc='Processing labels'):
             if go not in self.label_graph:
+                #protein_labels[protein] = set()             #Include negative examples also
                 continue
             if protein in protein_labels:
                 protein_labels[protein].add(go)
@@ -92,6 +95,7 @@ class Preprocess:
 
 class Dataset:
     def __init__(self, subgraph = None, finetune = False):
+        self.subgraph = subgraph
         self.dataset = Preprocess(subgraph = subgraph)
         self.IA = self.dataset.IA
         self.class_number = self.dataset.class_number
@@ -103,20 +107,21 @@ class Dataset:
             train_input_ids, val_input_ids = self._train_val_split(input_ids,split)
             train_attention_masks, val_attention_masks = self._train_val_split(attention_masks,split)
             train_labels, val_labels = self._train_val_split(labels, split)
-            train_dataset = TensorDataset(train_input_ids, train_attention_masks, train_labels)
-            val_dataset = TensorDataset(val_input_ids, val_attention_masks, val_labels)
+            train_dataset = TensorDataset(train_input_ids, train_attention_masks, torch.tensor(train_labels))
+            val_dataset = TensorDataset(val_input_ids, val_attention_masks, torch.tensor(val_labels))
         else:
             _, embeddings, labels = self.dataset.get_dataset('train', False)
             split = self.get_folds(labels)
             train_embeddings, val_embeddings = self._train_val_split(embeddings, split)
             train_labels, val_labels = self._train_val_split(labels, split)
-            train_dataset = TensorDataset(train_embeddings, train_labels)
-            val_dataset = TensorDataset(val_embeddings, val_labels)
+            train_dataset = TensorDataset(train_embeddings, torch.tensor(train_labels))
+            val_dataset = TensorDataset(val_embeddings, torch.tensor(val_labels))
         return train_dataset, val_dataset
     def get_test_dataset(self):
         protein_names, input_ids, attention_masks = self.dataset.get_dataset('test')
-        test_dataset = TensorDataset(input_ids, attention_mask)
-        return test_dataset, protein_names 
+        #test_dataset = TensorDataset(input_ids, attention_masks)
+        #return test_dataset, protein_names 
+        return None, protein_names
     def fill(self, predictions):
         rv = []
         for pred in predictions:

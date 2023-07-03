@@ -31,8 +31,10 @@ class Finetune(nn.Module):
         hidden_dim = model_param['HIDDEN_DIM']
         self.protbert = BertModel.from_pretrained(model_param['BERT'])
         self.average_pool = average_pool()
-        self.fc1 = nn.Linear(hidden_dim, hidden_dim//2)
-        self.fc2 = nn.Linear(hidden_dim//2, class_num)
+        self.fc1 = nn.Linear(hidden_dim, 2*hidden_dim)
+        #self.fc1 = nn.Linear(hidden_dim, hidden_dim//2)
+        self.fc2 = nn.Linear(2*hidden_dim, class_num)
+        #self.fc2 = nn.Linear(hidden_dim//2, class_num)
         self.activation = nn.GELU()
     def forward(self, input_ids, attention_masks, labels = None):
         embeddings = self.protbert(input_ids, attention_mask = attention_masks)['last_hidden_state']

@@ -10,10 +10,11 @@ from torch.utils.data import DataLoader, TensorDataset
 
 config_dict = toml.load("config.toml")
 
-def save_embeddings(model, device):
-    if os.path.exists(config_dict['files']['EMBEDS']):
+def save_embeddings(model, device, test = False):
+    embed_file = config_dict['files']['EMBEDS'] if not test else config_dict['files']['EMBEDS_TEST']
+    file = config_dict['files']['TRAIN_SEQ'] if not test else config_dict['files']['TEST_SEQ']
+    if os.path.exists(embed_file):
         raise ValueError("Embeddings already exist")
-    file = config_dict['files']['TRAIN_SEQ']
     sequences = {}
     with open(file,'r') as f:
         raw = f.readlines()
@@ -23,7 +24,6 @@ def save_embeddings(model, device):
         name = raw[start].split()[0][1:]
         sequence = ''.join([i.strip() for i in raw[start+1:end]])
         sequences[name] = sequence
-    sequences = {name:" ".join(list(re.sub(r"[UZOB]", "X", sequence))) for name,sequence in sequences.items()}
     names = sequences.keys()
     proteins = [sequences[name] for name in names]
     input_ids, attention_masks = Tokenizer().tokenize(proteins)
@@ -38,5 +38,5 @@ def save_embeddings(model, device):
         pred = pred.detach().cpu().numpy()
         embeds.extend(pred)
     result = {name:embed for name,embed in zip(names, embeds)}
-    with open(config_dict['files']['EMBEDS'], 'wb') as f:
+    with open(embed_file, 'wb') as f:
         pickle.dump(result, f)

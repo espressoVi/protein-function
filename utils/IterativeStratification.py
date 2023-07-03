@@ -8,6 +8,12 @@ def IterativeStratification(labels, n_splits):
     n_samples = labels.shape[0]
     test_folds = np.zeros(n_samples, dtype=int)
     labels_not_processed_mask = np.ones(n_samples, dtype=bool)
+    """ This part deals with empty labels by distributing them
+    uniformly accross folds """
+    empty_labels = np.where(np.sum(labels, axis=1)==0)[0]
+    labels_not_processed_mask[empty_labels] = False
+    test_folds[empty_labels] = np.random.randint(n_splits, size = len(empty_labels))
+    """ Iterative Stratification algorithm """
     c_folds = r * n_samples
     c_folds_labels = np.outer(r, labels.sum(axis=0))
     while np.any(labels_not_processed_mask):
