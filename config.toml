@@ -7,7 +7,7 @@ TEST_SEQ = "./data/test/testsuperset.fasta"
 IA = "./data/extras/IA.txt"
 EMBEDS = "./data/embeds.pkl"
 EMBEDS_TEST = "./data/embeds_test.pkl"
-SUBMIT = "./submit/submission.tsv"
+SUBMIT = "./submit"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"

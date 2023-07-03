@@ -10,8 +10,11 @@ class Metrics:
     def macro_f_measure(self, labels, outputs):
         tp, fp, = (labels & outputs).sum(axis=0), ((~labels)&outputs).sum(axis=0)
         fn, tn = (labels&(~outputs)).sum(axis=0),((~labels)&(~outputs)).sum(axis=0)
-        f_measure = (2*tp)/(2*tp+fp+fn)
-        return np.nanmean(f_measure)
+        n = 2*tp
+        d = (2*tp+fp+fn)
+        n = n[d!=0]
+        d = d[d!=0]
+        return np.mean(n/d)
     def micro_f_measure(self, labels, outputs):
         tp, fp, fn, tn = (labels & outputs).sum(), ((~labels)&outputs).sum(), (labels&(~outputs)).sum(),((~labels)&(~outputs)).sum()
         return 2*tp/(2*tp+fp+fn)
@@ -27,12 +30,20 @@ class Metrics:
     def subset_accuracy(self, labels, outputs):
         return np.mean(np.all(np.where(labels == outputs, True, False), axis=1))
     def accuracy(self, labels, outputs):
-        return np.nanmean(np.sum(np.logical_and(labels, outputs), axis = 1)/ np.sum(np.logical_or(labels, outputs), axis=1))
+        n = np.sum(np.logical_and(labels, outputs), axis = 1)
+        d = np.sum(np.logical_or(labels, outputs), axis=1)
+        n = n[d!=0]
+        d = d[d!=0]
+        return np.mean(n/d)
     def hamming_loss(self, labels, outputs):
         _, num_classes = np.shape(labels)
         return np.nanmean((np.sum(np.logical_or(labels, outputs), axis=1)-np.sum(np.logical_and(labels, outputs), axis=1))/num_classes)
     def f_measure(self, labels, outputs):
-        return np.nanmean(2*np.sum(np.logical_and(labels, outputs),axis=1)/(np.sum(labels,axis=1)+np.sum(outputs, axis=1)))
+        n = 2*np.sum(np.logical_and(labels, outputs),axis=1)
+        d = np.sum(labels,axis=1)+np.sum(outputs, axis=1)
+        n = n[d!=0]
+        d = d[d!=0]
+        return np.mean(n/d)
     @property
     def metrics(self):
         return {'MicroF1': lambda x,y : self.micro_f_measure(x,y),

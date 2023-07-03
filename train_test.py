@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import torch,toml,re
+import pickle,os
 import numpy as np
 from torch.utils.data import DataLoader, SequentialSampler
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR as Scheduler
 from tqdm import trange,tqdm
-import pickle
 
 config_dict = toml.load("config.toml")
 train_param = config_dict['train']
@@ -39,7 +39,8 @@ def train(model, device, dataset, metrics):
         scheduler.step()
         if (epoch_number+1)%10 == 0:
             threshold = evaluate(model, device, val_dataset, infer, metrics)
-    threshold = evaluate(model, device, val_dataset, infer, metrics)
+    if epoch_number < 10:
+        threshold = evaluate(model, device, val_dataset, infer, metrics)
     return model, threshold
 
 def evaluate(model, device, val_dataset, infer, metrics):
@@ -101,7 +102,7 @@ def write_predictions(trained_model, threshold, device, dataset, use_embeds = Tr
             go_id = f"GO:{dataset.dataset.idx2go[idx]:07d}"
             val = pred[idx]
             rv.append(f"{name}\t{go_id}\t{val:.4f}")
-    with open(config_dict['files']['SUBMIT'],'a') as f:
+    with open(os.path.join(config_dict['files']['SUBMIT'],f"{dataset.subgraph}.tsv"),'w') as f:
         f.writelines("\n".join(rv))
 
 def load_pretrained_test():

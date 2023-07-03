@@ -38,12 +38,14 @@ def manager(device, dataset, **kwargs):
         finetune(device, dataset)
 
 def main():
-    subgraph = "MF"
+    subgraphs = ['MF','CC']
     options = {'generate_embeddings':False, 'train':True, 'finetune':False}
     assert torch.cuda.is_available()
     device = torch.device("cuda")
-    dataset = Dataset(subgraph = subgraph)
-    manager(device, dataset, **options)
+    for subgraph in subgraphs:
+        print(f"{'-'*20} {subgraph} {'-'*20}")
+        dataset = Dataset(subgraph = subgraph)
+        manager(device, dataset, **options)
 
 if __name__ == "__main__":
     main()
