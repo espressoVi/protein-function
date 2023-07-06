@@ -16,30 +16,38 @@ files = config_dict['files']
 class Preprocess:
     def __init__(self, subgraph):
         self.GO = GeneOntology(subgraph)
-        #self._train_labels = self.GO.labels
-        self._train_labels = self.GO.load_labels()
+        self._train_labels = self.GO.labels
+        #self._train_labels = self.GO.load_labels()
         self.label_graph = self.GO.Graph
         self.class_number = len(self.label_graph)
         self.idx2go,self.go2idx = self._idx_to_and_from_go()
         self.tokenizer = Tokenizer()
         self.IA = self._parse_ia()
-    def get_dataset(self, mode, finetune = False):
+    def get_train_dataset(self, finetune = False):
         """ Returns lists of protein sequences, their names and their labels (if applicable) """
-        p_dict = self._load_proteins(mode)
-        if mode == 'test':
-            test_protein_names, test_proteins = [list(i) for i in list(zip(*p_dict.items()))]
-            test_input_ids, test_attention_masks = self.tokenizer.tokenize(test_proteins)
-            return test_protein_names, test_input_ids, test_attention_masks
         train_protein_names,train_labels = self._get_protein_labels(self._train_labels)
         if finetune:
+            p_dict = self._load_proteins(mode)  
             train_proteins = [p_dict[protein_name] for protein_name in train_protein_names]
             train_input_ids, train_attention_masks = self.tokenizer.tokenize(train_proteins)
             return train_protein_names, train_input_ids, train_attention_masks, train_labels
-        embeddings = self._get_embeddings()
+        embeddings = self._get_embeddings(mode = 'train')
         train_embeddings = torch.tensor(np.array([embeddings[name] for name in train_protein_names]))
         return train_protein_names, train_embeddings, train_labels
-    def _get_embeddings(self):
-        with open(config_dict['files']['EMBEDS'], 'rb') as f:
+    def get_test_dataset(self, finetune = False):
+        """ Returns lists of protein sequences, their names and their labels (if applicable) """
+        if finetune:
+            p_dict = self._load_proteins(mode)
+            test_protein_names, test_proteins = [list(i) for i in list(zip(*p_dict.items()))]
+            test_input_ids, test_attention_masks = self.tokenizer.tokenize(test_proteins)
+            return test_protein_names, test_input_ids, test_attention_masks
+        embeddings = self._get_embeddings(mode = 'test')
+        test_protein_names = list(embeddings.keys())
+        test_embeddings = torch.tensor(np.array([embeddings[name] for name in test_protein_names]))
+        return test_protein_names, test_embeddings
+    def _get_embeddings(self, mode = 'train'):
+        file = config_dict['files']['EMBEDS'] if mode == 'train' else config_dict['files']['EMBEDS_TEST']
+        with open(file, 'rb') as f:
             emb = pickle.load(f)
         return emb
     def _idx_to_and_from_go(self):
@@ -53,7 +61,7 @@ class Preprocess:
         protein_labels = {}
         for protein,go in tqdm(labels,desc='Processing labels'):
             if go not in self.label_graph:
-                protein_labels[protein] = set()             #Include negative examples also
+                #protein_labels[protein] = set()             #Include negative examples also
                 continue
             if protein in protein_labels:
                 protein_labels[protein].add(go)
@@ -101,7 +109,7 @@ class Dataset:
         self.finetune = finetune
     def get_train_dataset(self):
         if self.finetune:
-            _, input_ids, attention_masks, labels = self.dataset.get_dataset('train', True)
+            _, input_ids, attention_masks, labels = self.dataset.get_train_dataset(True)
             split = self.get_folds(labels)
             train_input_ids, val_input_ids = self._train_val_split(input_ids,split)
             train_attention_masks, val_attention_masks = self._train_val_split(attention_masks,split)
@@ -109,7 +117,7 @@ class Dataset:
             train_dataset = TensorDataset(train_input_ids, train_attention_masks, torch.tensor(train_labels))
             val_dataset = TensorDataset(val_input_ids, val_attention_masks, torch.tensor(val_labels))
         else:
-            _, embeddings, labels = self.dataset.get_dataset('train', False)
+            _, embeddings, labels = self.dataset.get_train_dataset(False)
             split = self.get_folds(labels)
             train_embeddings, val_embeddings = self._train_val_split(embeddings, split)
             train_labels, val_labels = self._train_val_split(labels, split)
@@ -117,8 +125,12 @@ class Dataset:
             val_dataset = TensorDataset(val_embeddings, torch.tensor(val_labels))
         return train_dataset, val_dataset
     def get_test_dataset(self):
-        protein_names, input_ids, attention_masks = self.dataset.get_dataset('test')
-        test_dataset = TensorDataset(input_ids, attention_masks)
+        if self.finetune:
+            protein_names, input_ids, attention_masks = self.dataset.get_test_dataset(True)
+            test_dataset = TensorDataset(input_ids, attention_masks)
+        else:
+            protein_names, embeddings = self.dataset.get_test_dataset(False)
+            test_dataset = TensorDataset(embeddings)
         return test_dataset, protein_names 
     def fill(self, predictions):
         rv = []
@@ -127,6 +139,17 @@ class Dataset:
             for idx in np.where(pred == 1)[0]:
                 anc = np.array([self.dataset.go2idx[i] for i in self.dataset.GO.ancestors[self.dataset.idx2go[idx]]]).astype(int)
                 prediction[anc] = 1
+            rv.append(prediction)
+        return np.array(rv)
+    def propagate(self, predictions):
+        rv = []
+        for pred in predictions:
+            prediction = np.zeros_like(pred)
+            for idx in reversed(range(len(pred))):
+                go = self.dataset.idx2go[idx]
+                successors = list(self.dataset.label_graph.successors(go))
+                score = np.amax([pred[self.dataset.go2idx[i]] for i in successors]) if len(successors) > 0 else 0
+                prediction[idx] = np.amax([prediction[idx],pred[idx], score])
             rv.append(prediction)
         return np.array(rv)
     @staticmethod

@@ -12,7 +12,8 @@ train_param = config_dict['train']
 
 def train(model, device, dataset, metrics):
     train_dataset, val_dataset = dataset.get_train_dataset()
-    infer = dataset.fill
+    infer = dataset.propagate
+    #infer = dataset.fill
     """ train_dataset, val_dataset are torch TensorDatasets
     which contains (input_ids, attention_masks, labels). """
     train_dataloader = DataLoader(train_dataset, batch_size = train_param['MINI_BATCH_SIZE'], shuffle = True, )
@@ -45,7 +46,7 @@ def train(model, device, dataset, metrics):
 
 def evaluate(model, device, val_dataset, infer, metrics):
     eval_dataloader = DataLoader(val_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False, )
-    metric = metrics.metrics['CAFAMetric']
+    metric = metrics.metrics['CAFA Metric']
     preds, labels = [],[]
     model.eval()
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
@@ -54,11 +55,12 @@ def evaluate(model, device, val_dataset, infer, metrics):
             pred = model(*batch)
         pred_batch = pred.detach().cpu().numpy()
         label_batch = batch[-1].detach().cpu().numpy()
-        preds.extend(pred_batch)
+        preds.extend(infer(pred_batch))
         labels.extend(label_batch)
     preds,labels = np.array(preds),np.array(labels)
     threshold = find_threshold(metric, labels, preds, infer)
-    outputs = infer((preds>threshold).astype(int))
+    #outputs = infer((preds>threshold).astype(int))
+    outputs = (preds>threshold).astype(int)
     print(metrics.eval_and_show(labels, outputs))
     return threshold
 
@@ -66,36 +68,26 @@ def find_threshold(metric, labels, preds, infer):
     best, threshold = 0, 0
     for i in tqdm(np.linspace(0.1, min(0.99,np.amax(preds)),100), desc="Tuning threshold"):
         outputs = (preds>i).astype(bool)
-        score = metric(labels, infer(outputs))
+        score = metric(labels, outputs)
+        #score = metric(labels, infer(outputs))
         if not np.isnan(score) and score > best:
             best = score 
             threshold = i
     return threshold
 
-def write_predictions(trained_model, threshold, device, dataset, use_embeds = True):
+def write_predictions(trained_model, threshold, device, dataset):
     trained_model.eval()
-    if use_embeds:
-        eval_dataloader = load_pretrained_test()
-        preds, names = [],[]
-        for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
-            name = batch[0]
-            with torch.no_grad():
-                pred = trained_model(batch[1].to(device), labels = None )
-            pred_batch = pred.detach().cpu().numpy()
-            preds.extend(pred_batch)
-            names.extend(name)
-    else:
-        test_dataset, names = dataset.get_test_dataset()
-        """ test_dataset contains (input_ids, attention_masks) names 
-        contains name of proteins corresponding to input_ids. """
-        eval_dataloader = DataLoader(test_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False,)
-        preds = []
-        for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
-            batch = tuple(t.to(device) for t in batch)
-            with torch.no_grad():
-                pred = trained_model(*batch, labels = None )
-            pred_batch = pred.detach().cpu().numpy()
-            preds.extend(pred_batch)
+    test_dataset, names = dataset.get_test_dataset()
+    """ test_dataset contains (input_ids, attention_masks) names 
+    contains name of proteins corresponding to input_ids. """
+    eval_dataloader = DataLoader(test_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False,)
+    preds = []
+    for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
+        batch = tuple(t.to(device) for t in batch)
+        with torch.no_grad():
+            pred = trained_model(*batch, labels = None )
+        pred_batch = pred.detach().cpu().numpy()
+        preds.extend(pred_batch)
     rv = []
     for name, pred in zip(names, preds):
         for idx in np.where(pred > threshold)[0]:
@@ -104,10 +96,3 @@ def write_predictions(trained_model, threshold, device, dataset, use_embeds = Tr
             rv.append(f"{name}\t{go_id}\t{val:.4f}")
     with open(os.path.join(config_dict['files']['SUBMIT'],f"{dataset.subgraph}.tsv"),'w') as f:
         f.writelines("\n".join(rv))
-
-def load_pretrained_test():
-    with open(config_dict['files']['EMBEDS_TEST'],'rb') as f:
-        embeds = pickle.load(f)
-    name_dataloader = DataLoader(list(embeds.keys()), batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False)
-    for name_batch in name_dataloader:
-        yield name_batch, torch.tensor(np.array([embeds[name] for name in name_batch]))

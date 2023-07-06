@@ -25,26 +25,27 @@ def traintop(device, dataset):
     trained_model, threshold = train(model, device, dataset, metric)
     return trained_model, threshold
 
-def write(device, dataset, trained_model, threshold):
-    write_predictions(trained_model, threshold, device, dataset, use_embeds = True )
+def write(device, dataset, trained_model, threshold, **kwargs):
+    write_predictions(trained_model, threshold, device, dataset)
 
 def manager(device, dataset, **kwargs):
     if kwargs['generate_embeddings']:
         generate_pretrained_embeddings(device)
     if kwargs['train']:
         trained_model, threshold = traintop(device, dataset)
-        write(device, dataset, trained_model, threshold)
+        print("Threshold : ", threshold)
+        write(device, dataset, trained_model, threshold,)
     if kwargs['finetune']:
         finetune(device, dataset)
 
 def main():
-    subgraphs = ['MF','CC']
+    subgraphs = ['CC', 'MF', 'BP']
     options = {'generate_embeddings':False, 'train':True, 'finetune':False}
     assert torch.cuda.is_available()
     device = torch.device("cuda")
     for subgraph in subgraphs:
         print(f"{'-'*20} {subgraph} {'-'*20}")
-        dataset = Dataset(subgraph = subgraph)
+        dataset = Dataset(subgraph = subgraph, finetune = options['finetune'])
         manager(device, dataset, **options)
 
 if __name__ == "__main__":

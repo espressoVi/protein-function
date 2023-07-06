@@ -2,6 +2,8 @@ data/*
 logs/
 cache/*
 submit/*
+upload
+temp_script
 
 __pycache__/
 *.py[cod]
