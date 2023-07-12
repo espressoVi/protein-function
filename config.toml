@@ -1,29 +1,34 @@
 name = "Kaggle Protein"
 
 [files]
+IA = "./data/extras/IA.txt"
 TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
-IA = "./data/extras/IA.txt"
-EMBEDS = "./data/embeds.pkl"
-EMBEDS_TEST = "./data/embeds_test.pkl"
-SUBMIT = "./submit"
+FOLDS = "./data/train/folds_"
+
+EMBEDS = "./data/train/BERT_embeds_train.pkl"
+EMBEDS_TEST = "./data/test/BERT_embeds_test.pkl"
+
+MODEL_FILE = "./models/MLP_"
+
+SUBMIT = "./submit/files"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
 NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellular_component'}
 
 [dataset]
-MIN_PROTEINS = 100
+MIN_PROTEINS = 400
 N_FOLDS = 10
 MAX_SEQ_LEN = 2048
 
 [train]
 MINI_BATCH_SIZE = 32
-TEST_BATCH_SIZE = 8
 ACCUMULATE = 2#32//MINI_BATCH_SIZE
+TEST_BATCH_SIZE = 8
 LR = 1e-3
-EPOCHS = 50
+EPOCHS = 20
 
 [model]
 HIDDEN_DIM = 1024

@@ -2,25 +2,20 @@
 import torch,toml,re
 import pickle,os
 import numpy as np
-from torch.utils.data import DataLoader, SequentialSampler
+from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR as Scheduler
 from tqdm import trange,tqdm
 
 config_dict = toml.load("config.toml")
 train_param = config_dict['train']
+device = torch.device("cuda")
 
-def train(model, device, dataset, metrics):
-    train_dataset, val_dataset = dataset.get_train_dataset()
-    infer = dataset.propagate
-    #infer = dataset.fill
-    """ train_dataset, val_dataset are torch TensorDatasets
-    which contains (input_ids, attention_masks, labels). """
-    train_dataloader = DataLoader(train_dataset, batch_size = train_param['MINI_BATCH_SIZE'], shuffle = True, )
-    optimizer_parameters = model.parameters()
-    optimizer = AdamW(optimizer_parameters, lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-4)
+def train(model, save_path, train_dataset, validate):
     epochs = train_param['EPOCHS']
+    optimizer = AdamW(model.parameters(), lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-4)
     scheduler = Scheduler(optimizer, epochs)
+    train_dataloader = DataLoader(train_dataset, batch_size = train_param['MINI_BATCH_SIZE'], shuffle = True, )
     counter, train_loss, loss = 1, 0.0,0.0
     model.zero_grad()
     for epoch_number in range(int(epochs)):
@@ -38,15 +33,26 @@ def train(model, device, dataset, metrics):
             epoch_iterator.set_description(f"Epoch [{epoch_number+1}/{epochs}] Loss : {train_loss/counter:.6f}")
             epoch_iterator.refresh()
         scheduler.step()
-        if (epoch_number+1)%10 == 0:
-            threshold = evaluate(model, device, val_dataset, infer, metrics)
-    if epoch_number < 10:
-        threshold = evaluate(model, device, val_dataset, infer, metrics)
-    return model, threshold
+        #if (epoch_number+1)%10 == 0:
+        #    print(validate(model))
+    torch.save(model.state_dict(), save_path)
 
-def evaluate(model, device, val_dataset, infer, metrics):
+def validator(val_dataset, infer_parents, metrics):
+    def validate(model):
+        labels, predictions = evaluate(model, val_dataset, infer_parents)
+        best, threshold = 0, 0
+        for i in tqdm(np.linspace(0.1, min(0.99,np.amax(predictions)),100), desc="Tuning threshold"):
+            outputs = (predictions>i).astype(bool)
+            score = metrics.metrics['CAFA Metric'](labels, outputs)
+            if not np.isnan(score) and score > best:
+                best = score 
+                threshold = i
+        outputs = (predictions>threshold).astype(bool)
+        return metrics.eval_and_show(labels, outputs)
+    return validate
+
+def evaluate(model, val_dataset, infer_parents):
     eval_dataloader = DataLoader(val_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False, )
-    metric = metrics.metrics['CAFA Metric']
     preds, labels = [],[]
     model.eval()
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
@@ -55,27 +61,12 @@ def evaluate(model, device, val_dataset, infer, metrics):
             pred = model(*batch)
         pred_batch = pred.detach().cpu().numpy()
         label_batch = batch[-1].detach().cpu().numpy()
-        preds.extend(infer(pred_batch))
+        preds.extend(infer_parents(pred_batch))
         labels.extend(label_batch)
-    preds,labels = np.array(preds),np.array(labels)
-    threshold = find_threshold(metric, labels, preds, infer)
-    #outputs = infer((preds>threshold).astype(int))
-    outputs = (preds>threshold).astype(int)
-    print(metrics.eval_and_show(labels, outputs))
-    return threshold
+    predictions,labels = np.array(preds),np.array(labels)
+    return labels, predictions
 
-def find_threshold(metric, labels, preds, infer):
-    best, threshold = 0, 0
-    for i in tqdm(np.linspace(0.1, min(0.99,np.amax(preds)),100), desc="Tuning threshold"):
-        outputs = (preds>i).astype(bool)
-        score = metric(labels, outputs)
-        #score = metric(labels, infer(outputs))
-        if not np.isnan(score) and score > best:
-            best = score 
-            threshold = i
-    return threshold
-
-def write_predictions(trained_model, threshold, device, dataset):
+def write_predictions(trained_model, threshold, dataset):
     trained_model.eval()
     test_dataset, names = dataset.get_test_dataset()
     """ test_dataset contains (input_ids, attention_masks) names 
@@ -94,5 +85,29 @@ def write_predictions(trained_model, threshold, device, dataset):
             go_id = f"GO:{dataset.dataset.idx2go[idx]:07d}"
             val = pred[idx]
             rv.append(f"{name}\t{go_id}\t{val:.4f}")
+    with open(os.path.join(config_dict['files']['SUBMIT'],f"{dataset.subgraph}.tsv"),'w') as f:
+        f.writelines("\n".join(rv))
+
+def write_top(trained_model, dataset):
+    trained_model.eval()
+    test_dataset, names = dataset.get_test_dataset()
+    """ test_dataset contains (input_ids, attention_masks) names 
+    contains name of proteins corresponding to input_ids. """
+    eval_dataloader = DataLoader(test_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False,)
+    preds, locs = [], []
+    for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
+        batch = tuple(t.to(device) for t in batch)
+        with torch.no_grad():
+            pred = trained_model(*batch, labels = None )
+            conf, idxs = torch.topk(pred, 100)
+        pred_batch = conf.detach().cpu().numpy()
+        id_batch = idxs.detach().cpu().numpy()
+        preds.extend(pred_batch)
+        locs.extend(id_batch)
+    rv = []
+    for name, pred, loc in zip(names, preds, locs):
+        for p,g in zip(pred, loc):
+            go_id = f"GO:{dataset.dataset.idx2go[g]:07d}"
+            rv.append(f"{name}\t{go_id}\t{p:.3f}")
     with open(os.path.join(config_dict['files']['SUBMIT'],f"{dataset.subgraph}.tsv"),'w') as f:
         f.writelines("\n".join(rv))

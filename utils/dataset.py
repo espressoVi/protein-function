@@ -12,7 +12,6 @@ from torch.utils.data import TensorDataset
 config_dict = toml.load("config.toml")
 files = config_dict['files']
 
-
 class Preprocess:
     def __init__(self, subgraph):
         self.GO = GeneOntology(subgraph)
@@ -109,16 +108,16 @@ class Dataset:
         self.finetune = finetune
     def get_train_dataset(self):
         if self.finetune:
-            _, input_ids, attention_masks, labels = self.dataset.get_train_dataset(True)
-            split = self.get_folds(labels)
+            protein_names, input_ids, attention_masks, labels = self.dataset.get_train_dataset(True)
+            split = self.get_folds(protein_names, labels)
             train_input_ids, val_input_ids = self._train_val_split(input_ids,split)
             train_attention_masks, val_attention_masks = self._train_val_split(attention_masks,split)
             train_labels, val_labels = self._train_val_split(labels, split)
             train_dataset = TensorDataset(train_input_ids, train_attention_masks, torch.tensor(train_labels))
             val_dataset = TensorDataset(val_input_ids, val_attention_masks, torch.tensor(val_labels))
         else:
-            _, embeddings, labels = self.dataset.get_train_dataset(False)
-            split = self.get_folds(labels)
+            protein_names, embeddings, labels = self.dataset.get_train_dataset(False)
+            split = self.get_folds(protein_names, labels)
             train_embeddings, val_embeddings = self._train_val_split(embeddings, split)
             train_labels, val_labels = self._train_val_split(labels, split)
             train_dataset = TensorDataset(train_embeddings, torch.tensor(train_labels))
@@ -152,9 +151,18 @@ class Dataset:
                 prediction[idx] = np.amax([prediction[idx],pred[idx], score])
             rv.append(prediction)
         return np.array(rv)
-    @staticmethod
-    def get_folds(labels):
-        return np.where(IterativeStratification(labels, n_splits=config_dict['dataset']['N_FOLDS']) == 0, True, False)
+    def get_folds(self, protein_names, labels):
+        fold_file = f"{files['FOLDS']}{self.subgraph}.pkl"
+        if os.path.exists(fold_file):
+            with open(fold_file, 'rb') as f:
+                fold_dict = pickle.load(f)
+            fold_array = np.array([fold_dict[name] for name in protein_names], dtype = bool)
+        else:
+            fold_array = np.where(IterativeStratification(labels, n_splits=config_dict['dataset']['N_FOLDS']) == 0, True, False)
+            fold_dict = {name:isVal for name, isVal in zip(protein_names, fold_array)}
+            with open(fold_file, 'wb') as f:
+                pickle.dump(fold_dict, f)
+        return fold_array
     @staticmethod
     def _train_val_split(arr, idx):
         if isinstance(arr, list):

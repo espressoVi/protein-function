@@ -3,7 +3,7 @@ logs/
 cache/*
 submit/*
 upload
-temp_script
+*.pth
 
 __pycache__/
 *.py[cod]
