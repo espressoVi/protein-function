@@ -14,5 +14,23 @@ class ClassificationLoss(nn.Module):
     def __init__(self):
         super().__init__()
     def forward(self, targets, predicts):
-        bce = targets * torch.log(predicts + 1e-10) + 0.1*(1-targets.int()) * torch.log(1-predicts+1e-10)
+        bce = targets * torch.log(predicts + 1e-10) + (1-targets.int()) * torch.log(1-predicts+1e-10)
         return -torch.mean(bce)
+
+class SmoothLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, targets, predicts):
+        epsilon = 0.1
+        with torch.no_grad():
+            targets = targets*(1-epsilon) + epsilon/targets.shape[-1]
+        bce = targets * torch.log(predicts + 1e-10) + (1-targets.int()) * torch.log(1-predicts+1e-10)
+        return -torch.mean(bce)
+
+class PositiveLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, targets, predicts):
+        bce = -torch.mean(targets * torch.log(predicts + 1e-10))
+        l2loss = torch.mean(torch.square(predicts - 0.5))
+        return bce + 0.05*l2loss

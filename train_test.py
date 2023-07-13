@@ -33,17 +33,17 @@ def train(model, save_path, train_dataset, validate):
             epoch_iterator.set_description(f"Epoch [{epoch_number+1}/{epochs}] Loss : {train_loss/counter:.6f}")
             epoch_iterator.refresh()
         scheduler.step()
-        #if (epoch_number+1)%10 == 0:
-        #    print(validate(model))
+        if (epoch_number+1)%10 == 0:
+            print(validate(model))
     torch.save(model.state_dict(), save_path)
 
 def validator(val_dataset, infer_parents, metrics):
     def validate(model):
         labels, predictions = evaluate(model, val_dataset, infer_parents)
         best, threshold = 0, 0
-        for i in tqdm(np.linspace(0.1, min(0.99,np.amax(predictions)),100), desc="Tuning threshold"):
+        for i in tqdm(np.linspace(0.1, 1,150), desc="Tuning threshold"):
             outputs = (predictions>i).astype(bool)
-            score = metrics.metrics['CAFA Metric'](labels, outputs)
+            score = metrics.metrics['F1'](labels, outputs)
             if not np.isnan(score) and score > best:
                 best = score 
                 threshold = i
@@ -91,23 +91,22 @@ def write_predictions(trained_model, threshold, dataset):
 def write_top(trained_model, dataset):
     trained_model.eval()
     test_dataset, names = dataset.get_test_dataset()
+    freqs = dataset.freqs
     """ test_dataset contains (input_ids, attention_masks) names 
     contains name of proteins corresponding to input_ids. """
     eval_dataloader = DataLoader(test_dataset, batch_size = train_param['TEST_BATCH_SIZE'], shuffle = False,)
-    preds, locs = [], []
+    preds = []
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
         batch = tuple(t.to(device) for t in batch)
         with torch.no_grad():
             pred = trained_model(*batch, labels = None )
-            conf, idxs = torch.topk(pred, 100)
-        pred_batch = conf.detach().cpu().numpy()
-        id_batch = idxs.detach().cpu().numpy()
+        pred_batch = pred.detach().cpu().numpy()
         preds.extend(pred_batch)
-        locs.extend(id_batch)
     rv = []
-    for name, pred, loc in zip(names, preds, locs):
-        for p,g in zip(pred, loc):
-            go_id = f"GO:{dataset.dataset.idx2go[g]:07d}"
-            rv.append(f"{name}\t{go_id}\t{p:.3f}")
+    for name, pred in zip(names, preds):
+        for idx in np.where(pred>freqs)[0]:
+            go_id = f"GO:{dataset.dataset.idx2go[idx]:07d}"
+            val = pred[idx]
+            rv.append(f"{name}\t{go_id}\t{val:.3f}")
     with open(os.path.join(config_dict['files']['SUBMIT'],f"{dataset.subgraph}.tsv"),'w') as f:
         f.writelines("\n".join(rv))

@@ -80,6 +80,8 @@ class Dataset:
         split = self.get_folds(protein_names, labels)
         train_embeddings, val_embeddings = self._train_val_split(embeddings, split)
         train_labels, val_labels = self._train_val_split(labels, split)
+        #self.freqs = train_labels.sum(axis=0)/train_labels.shape[0]
+        #train_labels = np.where(train_labels>self.freqs, train_labels, self.freqs)
         train_dataset = TensorDataset(train_embeddings, torch.tensor(train_labels))
         val_dataset = TensorDataset(val_embeddings, torch.tensor(val_labels))
         return train_dataset, val_dataset

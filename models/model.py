@@ -3,7 +3,7 @@ import torch,toml
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import BertModel
-from models.parts import average_pool, ClassificationLoss
+from models.parts import average_pool, ClassificationLoss, SmoothLoss, PositiveLoss
 
 config_dict = toml.load("config.toml")
 model_param = config_dict['model']
@@ -37,7 +37,7 @@ class Top(nn.Module):
         self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2) # (, 8,256)
         self.fc1 = nn.Linear(in_features=int(8 * hidden_dim/4), out_features=128)
         self.fc2 = nn.Linear(in_features=128, out_features=class_num)
-        self.loss = ClassificationLoss()
+        self.loss = PositiveLoss()
     def forward(self, embeddings, labels = None):
         x = embeddings.float()
         x = x.reshape(x.shape[0], 1, x.shape[1])

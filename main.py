@@ -32,14 +32,15 @@ def TrainTogether():
     print(f"{'-'*20} {subgraph} | {dataset.class_number} {'-'*20}")
     train_dataset, val_dataset = dataset.get_train_dataset()
     metrics = Metrics(np.zeros(dataset.class_number))
+    validate = validator(val_dataset, lambda x:x, metrics)
     model = Top(dataset.class_number)
     model.to(torch.device("cuda"))
-    #train(model, get_path(dataset.subgraph), train_dataset, None)
+    train(model, get_path(dataset.subgraph), train_dataset, validate)
     model.load_state_dict(torch.load(get_path(dataset.subgraph)))
     model.to(torch.device("cuda"))
     labels, predictions = evaluate(model, val_dataset, lambda x:x)
     best, threshold = 0, 0
-    for i in tqdm(np.linspace(0.3, 1,100), desc="Tuning threshold"):
+    for i in tqdm(np.linspace(0.1, 1,150), desc="Tuning threshold"):
         outputs = (predictions>i).astype(bool)
         score = metrics.metrics['F1'](labels, outputs)
         if not np.isnan(score) and score > best:
@@ -47,7 +48,8 @@ def TrainTogether():
             threshold = i
     outputs = (predictions>threshold).astype(bool)
     print(metrics.eval_and_show(labels, outputs))
-    write_top(model, dataset)
+    write_predictions(model, threshold, dataset)
+    #write_top(model, dataset)
 
 def TrainTop():
     subgraphs = list(config_dict['gene-ontology']['NAMESPACES'].keys())
