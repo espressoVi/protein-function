@@ -2,6 +2,8 @@
 import toml
 import networkx as nx
 from tqdm import tqdm
+import torch
+import numpy as np
 
 config_dict = toml.load("config.toml")
 
@@ -43,6 +45,13 @@ class GeneOntology:
         base_graph = self.make_graph(terms)
         self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
         self.Graph = self._graph_prune(base_graph)
+        self.edge_index = self.get_edge_index()
+    def get_edge_index(self):
+        rv = []
+        for source, dest in self.Graph.edges():
+            rv.append([source, dest])
+        rv = torch.tensor(np.array(rv), dtype = torch.long).t().contiguous()
+        return rv
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
             raw = f.readlines()

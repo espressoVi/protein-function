@@ -19,7 +19,7 @@ GO_FILE = "./data/extras/go-basic.obo"
 NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellular_component'}
 
 [dataset]
-MIN_PROTEINS = 400
+MIN_PROTEINS = 100
 N_FOLDS = 10
 MAX_SEQ_LEN = 2048
 
