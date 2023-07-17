@@ -13,9 +13,9 @@ class TopMLP(nn.Module):
         super().__init__()
         hidden_dim = model_param['HIDDEN_DIM']
         self.fc1 = nn.Linear(hidden_dim, hidden_dim*2)
-        self.ac1 = nn.Tanh()
+        self.ac1 = nn.GELU()
         self.fc2 = nn.Linear(hidden_dim*2, hidden_dim)
-        self.ac2 = nn.Tanh()
+        self.ac2 = nn.GELU()
         self.fc3 = nn.Linear(hidden_dim, class_num)
         self.loss = ClassificationLoss()
     def forward(self, embeddings, labels = None):

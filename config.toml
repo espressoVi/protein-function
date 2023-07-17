@@ -7,8 +7,8 @@ TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
 FOLDS = "./data/train/folds_"
 
-EMBEDS = "./data/train/BERT_embeds_train.pkl"
-EMBEDS_TEST = "./data/test/BERT_embeds_test.pkl"
+EMBEDS = "./data/embeddings/PROTBERT_embeds_train.pkl"
+EMBEDS_TEST = "./data/embeddings/PROTBERT_embeds_test.pkl"
 
 MODEL_FILE = "./models/MLP_"
 
