@@ -3,7 +3,8 @@ import torch
 import numpy as np
 #from utils.dataset import Dataset
 from utils.simple import Dataset
-from models.model import Top, Embeddings, Finetune
+from models.model import Embeddings, Finetune
+from models.model import TopMLP as Top
 from utils.pretrained_embeddings import save_embeddings
 from train_test import train, validator, evaluate, write_predictions, write_top
 from utils.metric import Metrics
@@ -105,7 +106,7 @@ def Write(threshold):
         model = Top(dataset.class_number)
         model.load_state_dict(torch.load(get_path(dataset.subgraph)))
         model.to(torch.device("cuda"))
-        write_predictions(model, threshold/2, dataset)
+        write_predictions(model, threshold, dataset)
 
 def manager(**kwargs):
     if kwargs['generate_embeddings']:
