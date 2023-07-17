@@ -35,9 +35,10 @@ class QuickGO:
         return f"https://www.ebi.ac.uk/QuickGO/services/annotation/downloadSearch?geneProductId={names}&geneProductType=protein&aspect={asp}"
 
 def main():
-    with open(config_dict['files']['EMBEDS'], 'rb') as f:
+    with open(config_dict['files']['EMBEDS_TEST'], 'rb') as f:
         names = list(pickle.load(f).keys())
     quick = QuickGO(names, 'BP').get()
+    quick = QuickGO(names, 'CC').get()
     quick = QuickGO(names, 'MF').get()
 if __name__ == "__main__":
     main()
