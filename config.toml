@@ -1,35 +1,32 @@
 name = "Kaggle Protein"
 
 [files]
-IA = "./data/extras/IA.txt"
 TRAIN_SEQ = "./data/train/train_sequences.fasta"
-TRAIN_LAB = "./data/train/train_terms.tsv"
 TEST_SEQ = "./data/test/testsuperset.fasta"
-FOLDS = "./data/train/folds_"
 
-EMBEDS =      "./data/embeddings/BERT_embeds_train.pkl"
-EMBEDS_TEST = "./data/embeddings/BERT_embeds_test.pkl"
+IA = "./data/extras/IA.txt"
+TRAIN_LAB = "./data/train/train_massive.tsv"	#train_terms.tsv
+#TRAIN_LAB = "./data/train/train_terms.tsv"
 
+EMBEDS =      "./data/embeddings/T5_more_embeds_train.pkl"
+EMBEDS_TEST = "./data/embeddings/T5_embeds_test.pkl"
 MODEL_FILE = "./models/MLP_"
-
 SUBMIT = "./submit/files"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
 NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellular_component'}
+MIN_PROTEINS = 100
 
 [dataset]
-MIN_PROTEINS = 100
-N_FOLDS = 10
 MAX_SEQ_LEN = 2048
 
 [train]
-MINI_BATCH_SIZE = 32
-ACCUMULATE = 2#32//MINI_BATCH_SIZE
-TEST_BATCH_SIZE = 8
-LR = 1e-3
+TRAIN_SIZE = 0.9
+MINI_BATCH_SIZE = 128
+TEST_BATCH_SIZE = 128
+LR = 1e-2
 EPOCHS = 50
 
 [model]
 HIDDEN_DIM = 1024
-BERT = "Rostlab/prot_bert"

@@ -7,34 +7,6 @@ import numpy as np
 
 config_dict = toml.load("config.toml")
 
-class GoTerm:
-    def __init__(self, term_string):
-        self.is_obsolete = False
-        self.is_a = []
-        self.term = term_string
-        self.preprocess()
-    def preprocess(self):
-        assert "id:" in self.term[0]
-        self.go_id = int(self.term[0].strip().split(":")[-1])
-        for i in self.term:
-            if "is_a: " in i:
-                entry = int(i.strip().split(" ")[1].split(":")[1])
-                self.is_a.append(entry)
-            elif "relationship: part_of " in i:
-                entry = int(i.strip().split(" ")[2].split(":")[1])
-                self.is_a.append(entry)
-            elif "is_obsolete: true" in i:
-                self.is_obsolete = True
-            elif "namespace: " in i:
-                namespace = i.strip().split()[-1]
-                self.namespace = namespace
-            elif "name: " in i:
-                self.name = i.strip().split(' ',1)[-1]
-    def __hash__(self):
-        return hash(self.go_id)
-    def __eq__(self, other):
-        return self.go_id == other.go_id
-
 class GeneOntology:
     Graph = nx.DiGraph()
     def __init__(self, subgraph): 
@@ -44,14 +16,8 @@ class GeneOntology:
         terms = [term for term in self._load_terms() if term.namespace == _name]
         base_graph = self.make_graph(terms)
         self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
+        self.ancestors = {}
         self.Graph = self._graph_prune(base_graph)
-        self.edge_index = self.get_edge_index()
-    def get_edge_index(self):
-        rv = []
-        for source, dest in self.Graph.edges():
-            rv.append([source, dest])
-        rv = torch.tensor(np.array(rv), dtype = torch.long).t().contiguous()
-        return rv
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
             raw = f.readlines()
@@ -74,8 +40,7 @@ class GeneOntology:
         return nx.DiGraph([(source,term.go_id) for term in terms for source in term.is_a])
     def _graph_prune(self, graph):
         """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
-        min_proteins = config_dict['dataset']['MIN_PROTEINS']
-        self.ancestors = {}
+        min_proteins = config_dict['gene-ontology']['MIN_PROTEINS']
         def find_ancestors(node):
             if node in self.ancestors:
                 return self.ancestors[node]
@@ -113,3 +78,30 @@ class GeneOntology:
             rv.append((row[0],int(row[1].split(':')[-1])))
         return rv
 
+class GoTerm:
+    def __init__(self, term_string):
+        self.is_obsolete = False
+        self.is_a = []
+        self.term = term_string
+        self.preprocess()
+    def preprocess(self):
+        assert "id:" in self.term[0]
+        self.go_id = int(self.term[0].strip().split(":")[-1])
+        for i in self.term:
+            if "is_a: " in i:
+                entry = int(i.strip().split(" ")[1].split(":")[1])
+                self.is_a.append(entry)
+            elif "relationship: part_of " in i:
+                entry = int(i.strip().split(" ")[2].split(":")[1])
+                self.is_a.append(entry)
+            elif "is_obsolete: true" in i:
+                self.is_obsolete = True
+            elif "namespace: " in i:
+                namespace = i.strip().split()[-1]
+                self.namespace = namespace
+            elif "name: " in i:
+                self.name = i.strip().split(' ',1)[-1]
+    def __hash__(self):
+        return hash(self.go_id)
+    def __eq__(self, other):
+        return self.go_id == other.go_id
