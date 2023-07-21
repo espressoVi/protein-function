@@ -16,7 +16,8 @@ class GeneOntology:
         terms = [term for term in self._load_terms() if term.namespace == _name]
         base_graph = self.make_graph(terms)
         self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
-        self.ancestors = {}
+        self.ancestors, self.descendants = {}, {}
+        self.ancestors_and_descendants(base_graph)
         self.Graph = self._graph_prune(base_graph)
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
@@ -41,6 +42,23 @@ class GeneOntology:
     def _graph_prune(self, graph):
         """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
         min_proteins = config_dict['gene-ontology']['MIN_PROTEINS']
+        _count = {}
+        for protein, go in tqdm(self.labels, desc = "Pruning graph"):
+            for node in self.ancestors[go]:
+                if node in _count:
+                    _count[node].add(protein)
+                else:
+                    _count[node] = {protein}
+        for node in reversed(list(nx.topological_sort(graph))):
+            if node not in _count or len(_count[node]) < min_proteins:
+                graph.remove_node(node)
+                if node in self.ancestors:
+                    del self.ancestors[node]
+                if node in self.descendants:
+                    del self.descendants[node]
+        assert len(list(nx.weakly_connected_components(graph))) == 1
+        return graph
+    def ancestors_and_descendants(self, graph):
         def find_ancestors(node):
             if node in self.ancestors:
                 return self.ancestors[node]
@@ -53,20 +71,21 @@ class GeneOntology:
                 ancs = ancs.union(find_ancestors(nd))
             self.ancestors[node] = ancs
             return ancs
-        _count = {}
-        for protein, go in tqdm(self.labels, desc = "Pruning graph"):
-            for node in find_ancestors(go):
-                if node in _count:
-                    _count[node].add(protein)
-                else:
-                    _count[node] = {protein}
-        for node in reversed(list(nx.topological_sort(graph))):
-            if node not in _count or len(_count[node]) < min_proteins:
-                graph.remove_node(node)
-                if node in self.ancestors:
-                    del self.ancestors[node]
-        assert len(list(nx.weakly_connected_components(graph))) == 1
-        return graph
+        def find_descendants(node):
+            if node in self.descendants:
+                return self.descendants[node]
+            successors = list(graph.successors(node))
+            if len(successors) == 0:
+                self.descendants[node] = {node}
+                return {node}
+            ancs = {node}
+            for nd in successors:
+                ancs = ancs.union(find_descendants(nd))
+            self.descendants[node] = ancs
+            return ancs
+        for node in graph:
+            find_ancestors(node)
+            find_descendants(node)
     @staticmethod
     def load_labels():
         """ Reads label file """

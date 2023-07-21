@@ -4,7 +4,6 @@ import numpy as np
 from utils.dataset import GetDataset
 from models.model import Node
 from train_test import train, write_predictions
-from utils.metric import Metrics
 import toml
 
 config_dict = toml.load("config.toml")

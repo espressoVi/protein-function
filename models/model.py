@@ -22,7 +22,8 @@ class Node(nn.Module):
         self.protein = nn.Sequential(ResBlock(1,3), ResBlock(3,5), ResBlock(5,7), ResBlock(7,9),)
         self.fc1 = nn.Linear(9,1)
         self.cos = nn.CosineSimilarity(dim = -1)
-    def forward(self, edges, embeddings, probe_nodes, labels = None):
+        self.loss = nn.CrossEntropyLoss(label_smoothing = 0.0)
+    def forward(self, edges, embeddings, labels = None):
         x = self.node_embed(torch.arange(self.node_number).to(embeddings.device)).unsqueeze(0).repeat(embeddings.shape[0],1,1)
         x = self.conv1(x, edges)
         x = self.ac1(x)
@@ -33,15 +34,13 @@ class Node(nn.Module):
 
         y = self.protein(embeddings.float().unsqueeze(1))
         y = self.fc1(y.view(y.shape[0],y.shape[-1], y.shape[1])).squeeze(-1)
-        probe_node_embeddings = x[torch.arange(x.shape[0]).to(x.device),probe_nodes,:].squeeze(1)
-        probe_node_sim = self.cos(probe_node_embeddings, y)
+        sim = self.cos(x, y.unsqueeze(1).repeat(1,edges.shape[-1],1))
+        _,preds = torch.topk(sim, 1)
         if self.training:
-            positives = labels*probe_node_sim
-            unk = (1-labels)*probe_node_sim
-            loss = torch.mean( torch.square(1-positives) + torch.square(unk))
-            #loss = torch.mean( (1-positives) + 0.1*torch.square(unk))
-            return loss, probe_node_sim
-        return probe_node_sim
+            _,lab = torch.topk(labels, 1)
+            loss = self.loss(sim, lab[:,0])
+            return loss, preds
+        return preds
 
 
 class Embeddings(nn.Module):

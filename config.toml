@@ -5,18 +5,18 @@ TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TEST_SEQ = "./data/test/testsuperset.fasta"
 
 IA = "./data/extras/IA.txt"
-TRAIN_LAB = "./data/train/train_massive.tsv"	#train_terms.tsv
-#TRAIN_LAB = "./data/train/train_terms.tsv"
+#TRAIN_LAB = "./data/train/train_massive.tsv"
+TRAIN_LAB = "./data/train/train_terms.tsv"
 
 EMBEDS =      "./data/embeddings/T5_more_embeds_train.pkl"
 EMBEDS_TEST = "./data/embeddings/T5_embeds_test.pkl"
-MODEL_FILE = "./models/MLP_"
+MODEL_FILE = "./models/Node_"
 SUBMIT = "./submit/files"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
 NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellular_component'}
-MIN_PROTEINS = 100
+MIN_PROTEINS = 150
 
 [dataset]
 MAX_SEQ_LEN = 2048
@@ -25,8 +25,8 @@ MAX_SEQ_LEN = 2048
 TRAIN_SIZE = 0.9
 MINI_BATCH_SIZE = 128
 TEST_BATCH_SIZE = 128
-LR = 1e-2
-EPOCHS = 50
+LR = 1e-3
+EPOCHS = 20
 
 [model]
 HIDDEN_DIM = 1024
