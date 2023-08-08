@@ -9,7 +9,7 @@ config_dict = toml.load("config.toml")
 
 class GeneOntology:
     Graph = nx.DiGraph()
-    def __init__(self, subgraph): 
+    def __init__(self, subgraph, prune = True): 
         assert subgraph in config_dict['gene-ontology']['NAMESPACES']
         self._subgraph = subgraph
         _name = config_dict['gene-ontology']['NAMESPACES'][subgraph]
@@ -18,7 +18,7 @@ class GeneOntology:
         self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
         self.ancestors, self.descendants = {}, {}
         self.ancestors_and_descendants(base_graph)
-        self.Graph = self._graph_prune(base_graph)
+        self.Graph = self._graph_prune(base_graph) if prune else base_graph
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
             raw = f.readlines()

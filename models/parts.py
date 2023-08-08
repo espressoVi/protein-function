@@ -29,27 +29,28 @@ class GraphConv(nn.Module):
         output = torch.matmul(adj, support)
         return output + self.bias
 
-class ResBlock(nn.Module):
-    def __init__(self, in_features, out_features):
+class EMBNet(nn.Module):
+    def __init__(self, hidden_dim):
         super().__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.conv1x1 = nn.Conv1d(self.in_features, self.out_features, 1, stride = 1, padding = 0, )
-        self.maxPool = nn.MaxPool1d(7, stride=2, padding=3)
-        self.bn1 = nn.Sequential(nn.BatchNorm1d(self.in_features), nn.ReLU(), nn.Dropout(0.1))
-        self.conv1 = nn.Conv1d(self.in_features, self.out_features, 7, stride=2, padding=3, )
-        self.bn2 = nn.Sequential(nn.BatchNorm1d(self.out_features), nn.ReLU(), nn.Dropout(0.1))
-        self.conv2 = nn.Conv1d(self.out_features, self.out_features, 7, stride = 1, padding = 3,)
-    def forward(self, layer):
-        output = layer
-        shortcut = self.conv1x1(layer)
-        shortcut = self.maxPool(shortcut)
-        output = self.bn1(output)
-        output = self.conv1(output)
-        output = self.bn2(output)
-        output = self.conv2(output)
-        output += shortcut
-        return output
+        self.fc1 = nn.Linear(hidden_dim, 512)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.fc4 = nn.Linear(512, 128)
+        self.bn3 = nn.BatchNorm1d(128)
+    def forward(self, embeddings):
+        y = self.fc1(embeddings.float())
+        y1 = self.bn1(y)
+        y = self.fc2(F.relu(y1))
+        y = self.fc3(F.relu(y))
+        y = self.bn2(y)
+        y = y+y1
+        y = F.relu(self.fc4(y))
+        y = self.bn3(y)
+        return y
+
+        
 
 class ClassificationLoss(nn.Module):
     def __init__(self):

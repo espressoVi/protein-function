@@ -26,17 +26,19 @@ class GetDataset:
             test_dataset = GraphDataset(self.edges,self.descendants, names, embeddings, None, None)
             return test_dataset
         embeddings = self._get_embeddings(mode = 'train')
-        labels = self._get_labels()
+        labels, queries = self._get_labels()
         names = list(labels.keys())
         labels = [labels[name] for name in names]
+        queries = [queries[name] for name in names]
         embeddings = [embeddings[name] for name in names]
         assert len(names) == len(embeddings) == len(labels)
         idx = np.random.binomial(1, config_dict['train']['TRAIN_SIZE'], size = len(names))
         train_names, val_names = self._train_val_split(names, idx)
         train_labels, val_labels = self._train_val_split(labels, idx)
+        train_queries, val_queries = self._train_val_split(queries, idx)
         train_embeddings, val_embeddings = self._train_val_split(embeddings, idx)
-        train_dataset = GraphDataset(self.edges, self.descendants, train_names, train_embeddings, train_labels)
-        val_dataset = GraphDataset(self.edges, self.descendants, val_names, val_embeddings, val_labels)
+        train_dataset = GraphDataset(self.edges, self.descendants, train_names, train_embeddings, train_queries, train_labels)
+        val_dataset = GraphDataset(self.edges, self.descendants, val_names, val_embeddings, val_queries, val_labels)
         return train_dataset, val_dataset
     def _get_embeddings(self, mode = 'train'):
         file = config_dict['files']['EMBEDS'] if mode == 'train' else config_dict['files']['EMBEDS_TEST']
@@ -51,12 +53,22 @@ class GetDataset:
                 positive_labels[name].add(node)
             else:
                 positive_labels[name] = {node}
-        labels = {}
-        for name in positive_labels.keys():
+        query, labels = {}, {}
+        for name, label in positive_labels.items():
+            query[name] = self._get_edges(label)
             lab = np.zeros(len(self.nodes), dtype = bool)
-            lab[list(self._reduce_labels(positive_labels[name]))] = 1
+            lab[list(label)] = True
             labels[name] = lab
-        return labels
+        return labels, query
+    def _get_edges(self, label):
+        res = []
+        remaining = sorted(list(label))
+        for i in range(len(label)):
+            node = remaining.pop()
+            preds = set([self.go2idx[n] for n in self.GO.Graph.predecessors(self.idx2go[node])])
+            preds = preds.intersection(label)
+            res.extend([(p, node) for p in preds])
+        return res
     def _reduce_labels(self, label):
         for node in label:
             label = label - self.ancestors[node]
@@ -93,13 +105,13 @@ class GetDataset:
         return adj
 
 class GraphDataset(Dataset):
-    def __init__(self, edges, descendants, names, embeddings, labels = None):
+    def __init__(self, edges, descendants, names, embeddings, queries, labels = None):
         self.names = names
         self.edges = edges
         self.desc = descendants
         self.embeddings = embeddings
         self.labels = labels
-        num_labs = np.sum(labels, axis = 1)
+        self.queries = queries
         self.train = True if self.labels is not None else False
     def fill(self, predictions):
         rv = []
@@ -116,8 +128,11 @@ class GraphDataset(Dataset):
         embeds = torch.tensor(self.embeddings[idx], dtype=torch.float)
         if not self.train:
             return name, self.edges, embeds, None
+        parent, child = self.queries[idx][np.random.randint(len(self.queries[idx]))]
+        parent_mask = self.edges[parent].clone().detach()
+        parent_mask[parent] = 0
         label = torch.tensor(self.labels[idx], dtype = torch.float)
-        return name, self.edges, embeds, label
+        return name, self.edges, embeds, parent_mask, torch.tensor(child, dtype=torch.long), label
     
 def main():
     train_dataset, val_dataset = GetDataset(subgraph="CC", train = True).get()
