@@ -3,6 +3,7 @@ logs/
 cache/*
 submit/*
 diamond/*
+database/*
 *.pth
 
 __pycache__/

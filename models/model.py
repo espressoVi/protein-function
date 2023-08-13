@@ -2,46 +2,27 @@
 import torch,toml
 import torch.nn as nn
 import torch.nn.functional as F
-from models.parts import average_pool, GraphConv, EMBNet
+from models.parts import average_pool, EMBNet, ContrastiveLoss
 
 config_dict = toml.load("config.toml")
 model_param = config_dict['model']
 
-class Node(nn.Module):
+class Similarity(nn.Module):
     def __init__(self, node_number):
         super().__init__()
         hidden_dim = model_param['HIDDEN_DIM']
         self.node_number = node_number
-        #self.node_embed = nn.Embedding(node_number, 256)
-        #self.conv1 = GraphConv(in_features = 256, out_features = 256)
-        #self.ac1 = nn.ReLU()
-        #self.conv2 = GraphConv(in_features = 256, out_features = 128,)
-        #self.ac2 = nn.ReLU()
-        #self.conv3 = GraphConv(in_features = 128, out_features = 128,)
         self.emb = EMBNet(hidden_dim)
-        self.fc = nn.Linear(128, node_number)
-
-        #self.cos = nn.CosineSimilarity(dim = -1)
-        self.loss = nn.CrossEntropyLoss(label_smoothing = 0.0)
-    def forward(self, edges, embeddings, parent_mask, label_child = None, labels = None):
-        #x = self.node_embed(torch.arange(self.node_number).to(embeddings.device)).unsqueeze(0).repeat(embeddings.shape[0],1,1)
-        #x = self.conv1(x, edges)
-        #x = self.ac1(x)
-        #x = self.conv2(x, edges)
-        #x = self.ac2(x)
-        #x = self.conv3(x, edges)
-
-        y = self.emb(embeddings)
-        sim = self.fc(y)
-        #sim = self.cos(x, y.unsqueeze(1).repeat(1,edges.shape[-1],1))
-        masked_sim = sim.masked_fill((1-parent_mask).bool(), float("-inf"))
-        #masked_sim = y.masked_fill((1-parent_mask).bool(), float("-inf"))
-        _,preds = torch.topk(masked_sim, 1)
-        if self.training:
-            loss = self.loss(masked_sim, label_child)
-            return loss, preds.squeeze()
-        return preds.squeeze()
-
+        self.margin = 1.0
+        self.loss = ContrastiveLoss(self.margin)
+    def forward(self, query_features, key_features = None, sims = None, query_labels = None, key_labels = None):
+        x = self.emb(query_features)
+        y = self.emb(key_features)
+        predicts = torch.sqrt(torch.sum(torch.square(x - y), dim = -1))
+        if not self.training:
+            return predicts, x
+        loss = self.loss(x,y, sims)
+        return loss, predicts
 
 class Embeddings(nn.Module):
     def __init__(self, ):

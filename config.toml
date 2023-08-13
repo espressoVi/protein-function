@@ -3,15 +3,15 @@ name = "Kaggle Protein"
 [files]
 TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TEST_SEQ = "./data/test/testsuperset.fasta"
-
 IA = "./data/extras/IA.txt"
 TRAIN_LAB = "./data/train/train_terms.tsv"
-
-EMBEDS =      "./data/embeddings/BERT_embeds_train.pkl"
-EMBEDS_TEST = "./data/embeddings/BERT_embeds_test.pkl"
-MODEL_FILE = "./models/Node_"
-SUBMIT = "./submit/files"
 DIAMOND = "./data/train/diamond.tsv"
+TRAIN_PAIRS = "./data/train/train_"
+EMBEDS =      "./data/embeddings/ESM_embeds_train.pkl"
+EMBEDS_TEST = "./data/embeddings/ESM_embeds_test.pkl"
+MODEL_FILE = "./models/SIM_"
+SUBMIT = "./submit/files"
+DATABASE = "./database"
 
 [gene-ontology]
 GO_FILE = "./data/extras/go-basic.obo"
@@ -20,13 +20,15 @@ MIN_PROTEINS = 150
 
 [dataset]
 MAX_SEQ_LEN = 2048
+CUTOFF_HIGH = 0.8
+CUTOFF_LOW = 0.2
 
 [train]
 TRAIN_SIZE = 0.9
 MINI_BATCH_SIZE = 128
 TEST_BATCH_SIZE = 128
-LR = 1e-2
-EPOCHS = 200
+LR = 1e-3
+EPOCHS = 5
 
 [model]
-HIDDEN_DIM = 1024
+HIDDEN_DIM = 1280

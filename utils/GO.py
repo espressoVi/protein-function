@@ -9,16 +9,16 @@ config_dict = toml.load("config.toml")
 
 class GeneOntology:
     Graph = nx.DiGraph()
-    def __init__(self, subgraph, prune = True): 
+    def __init__(self, subgraph): 
         assert subgraph in config_dict['gene-ontology']['NAMESPACES']
         self._subgraph = subgraph
         _name = config_dict['gene-ontology']['NAMESPACES'][subgraph]
         terms = [term for term in self._load_terms() if term.namespace == _name]
-        base_graph = self.make_graph(terms)
-        self.labels = [(protein,go) for protein, go in self.load_labels() if go in base_graph]
+        self.Graph = self.make_graph(terms)
+        self.labels = [(protein,go) for protein, go in self.load_labels() if go in self.Graph]
         self.ancestors, self.descendants = {}, {}
-        self.ancestors_and_descendants(base_graph)
-        self.Graph = self._graph_prune(base_graph) if prune else base_graph
+        self.ancestors_and_descendants(self.Graph)
+        self.weights = self.load_IA()
     def _load_terms(self):
         with open(config_dict['gene-ontology']['GO_FILE']) as f:
             raw = f.readlines()
@@ -39,25 +39,6 @@ class GeneOntology:
         return rv
     def make_graph(self, terms):
         return nx.DiGraph([(source,term.go_id) for term in terms for source in term.is_a])
-    def _graph_prune(self, graph):
-        """ Removes those nodes from the graph which do not have min_proteins examples of it in train """
-        min_proteins = config_dict['gene-ontology']['MIN_PROTEINS']
-        _count = {}
-        for protein, go in tqdm(self.labels, desc = "Pruning graph"):
-            for node in self.ancestors[go]:
-                if node in _count:
-                    _count[node].add(protein)
-                else:
-                    _count[node] = {protein}
-        for node in reversed(list(nx.topological_sort(graph))):
-            if node not in _count or len(_count[node]) < min_proteins:
-                graph.remove_node(node)
-                if node in self.ancestors:
-                    del self.ancestors[node]
-                if node in self.descendants:
-                    del self.descendants[node]
-        assert len(list(nx.weakly_connected_components(graph))) == 1
-        return graph
     def ancestors_and_descendants(self, graph):
         def find_ancestors(node):
             if node in self.ancestors:
@@ -96,6 +77,11 @@ class GeneOntology:
             row = lab.strip().split('\t')[:2]
             rv.append((row[0],int(row[1].split(':')[-1])))
         return rv
+    def load_IA(self):
+        with open(config_dict['files']['IA'], 'r') as f:
+            ia = {int(i.split("\t")[0][3:]):float(i.split("\t")[1]) for i in f.readlines()}
+        ia = {key: value for key,value in ia.items() if key in self.Graph}
+        return ia
 
 class GoTerm:
     def __init__(self, term_string):

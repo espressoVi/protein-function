@@ -1,15 +1,42 @@
 #!/usr/bin/env python3
-import os,re,toml,torch
+import os,re,toml,torch, pickle
 import networkx as nx
 import numpy as np
-import pickle
+from tqdm import tqdm
 from utils.GO import GeneOntology 
 from torch.utils.data import Dataset
-from collections import Counter
 
 
 config_dict = toml.load("config.toml")
 files = config_dict['files']
+
+class PairDataset(Dataset):
+    def __init__(self, X, queries, labels = None, keys = None, similarity = None):
+        self.X = X #Dict of all names:features
+        self.queries = queries #List of names which are queried
+        self.train=labels is not None and keys is not None and similarity is not None
+        self.labels = labels #Dict of name:labels
+        self.keys = keys #List of key names
+        self.similarity = similarity #Similarity
+        self.train = True if self.labels is not None else False
+    def __len__(self):
+        return len(self.queries)
+    def __getitem__(self, idx):
+        if idx >= len(self):
+            raise IndexError(f"{idx} is greater than dataset size {len(self)}")
+        if self.train:
+            query = self.queries[idx]
+            key = self.keys[idx]
+            query_feature = torch.tensor(self.X[query], dtype = torch.float)
+            key_feature = torch.tensor(self.X[key], dtype = torch.float)
+            sim = torch.tensor(self.similarity[idx], dtype = torch.float)
+            query_label = torch.tensor(self.labels[query], dtype = bool)
+            key_label = torch.tensor(self.labels[key], dtype = bool)
+            return query, query_feature, key_feature, sim, query_label, key_label
+        else:
+            query = self.queries[idx]
+            query_feature = torch.tensor(self.X[query], dtype = torch.float)
+            return query, query_feature
 
 class GetDataset:
     def __init__(self, subgraph, train=True):
@@ -17,31 +44,44 @@ class GetDataset:
         self.GO = GeneOntology(subgraph)
         self.idx2go, self.go2idx = self._idx_to_and_from_go()
         self.nodes = set([self.go2idx[node] for node in self.GO.Graph])
-        self.descendants = self._init_descendants(self.GO.descendants)
-        self.ancestors = self._init_ancestors(self.GO.ancestors)
-        self.edges = self.get_edge_index()
-    def get(self):
-        if not self.train:
-            names, embeddings = zip(*self._get_embeddings(mode = 'test').items())
-            test_dataset = GraphDataset(self.edges,self.descendants, names, embeddings, None, None)
-            return test_dataset
-        embeddings = self._get_embeddings(mode = 'train')
-        labels, queries = self._get_labels()
-        names = list(labels.keys())
-        labels = [labels[name] for name in names]
-        queries = [queries[name] for name in names]
-        embeddings = [embeddings[name] for name in names]
-        assert len(names) == len(embeddings) == len(labels)
-        idx = np.random.binomial(1, config_dict['train']['TRAIN_SIZE'], size = len(names))
-        train_names, val_names = self._train_val_split(names, idx)
-        train_labels, val_labels = self._train_val_split(labels, idx)
+        self.weights = self._init_IA()
+    def get_train_val(self):
+        self.train_labels = self._get_labels()
+        self.X = self._get_embeddings(mode = "train")
+        queries, keys, sim = self._get_train_pairs()
+        idx = np.random.binomial(1, config_dict['train']['TRAIN_SIZE'], size = len(queries))
         train_queries, val_queries = self._train_val_split(queries, idx)
-        train_embeddings, val_embeddings = self._train_val_split(embeddings, idx)
-        train_dataset = GraphDataset(self.edges, self.descendants, train_names, train_embeddings, train_queries, train_labels)
-        val_dataset = GraphDataset(self.edges, self.descendants, val_names, val_embeddings, val_queries, val_labels)
+        train_keys, val_keys = self._train_val_split(keys, idx)
+        train_sim, val_sim = self._train_val_split(sim, idx)
+        train_dataset = PairDataset(self.X, train_queries, self.train_labels, train_keys, train_sim)
+        val_dataset = PairDataset(self.X, val_queries, self.train_labels, val_keys, val_sim)
         return train_dataset, val_dataset
+    def _get_train_pairs(self):
+        low, high = config_dict['dataset']['CUTOFF_LOW'], config_dict['dataset']['CUTOFF_HIGH'] 
+        queries, keys, sim = [],[], []
+        with open(f"{files['TRAIN_PAIRS']}{self.subgraph}.tsv", "r") as f:
+            for i in f.readlines():
+                q,k,s = i.rstrip().split("\t")
+                s = float(s)
+                if low < s < high:
+                    continue
+                if s > high:
+                    s = 1.0
+                elif s < low:
+                    s = 0.0
+                queries.append(q)
+                keys.append(k)
+                sim.append(s)
+        return queries, keys, sim
+    def _compute_cafa(self, target, label):
+        intersection = np.sum(self.weights*np.logical_and(target, label))
+        pred = np.sum(self.weights*label)
+        gt = np.sum(self.weights*target)
+        pr = intersection/pred if pred!=0 else 0
+        rc = intersection/gt if gt!=0 else 0
+        return (2*pr*rc)/(pr+rc) if (pr+rc) !=0 else 0
     def _get_embeddings(self, mode = 'train'):
-        file = config_dict['files']['EMBEDS'] if mode == 'train' else config_dict['files']['EMBEDS_TEST']
+        file = files['EMBEDS'] if mode == 'train' else files['EMBEDS_TEST']
         with open(file, 'rb') as f:
             emb = pickle.load(f)
         return emb
@@ -53,92 +93,27 @@ class GetDataset:
                 positive_labels[name].add(node)
             else:
                 positive_labels[name] = {node}
-        query, labels = {}, {}
+        labels = {}
         for name, label in positive_labels.items():
-            query[name] = self._get_edges(label)
             lab = np.zeros(len(self.nodes), dtype = bool)
             lab[list(label)] = True
             labels[name] = lab
-        return labels, query
-    def _get_edges(self, label):
-        res = []
-        remaining = sorted(list(label))
-        for i in range(len(label)):
-            node = remaining.pop()
-            preds = set([self.go2idx[n] for n in self.GO.Graph.predecessors(self.idx2go[node])])
-            preds = preds.intersection(label)
-            res.extend([(p, node) for p in preds])
-        return res
-    def _reduce_labels(self, label):
-        for node in label:
-            label = label - self.ancestors[node]
-        return label
+        return labels
     def _idx_to_and_from_go(self):
         idx2go,go2idx = {},{}
         for idx,node in enumerate(nx.topological_sort(self.GO.Graph)):
             idx2go[idx] = node
             go2idx[node] = idx
         return idx2go,go2idx
-    def _init_descendants(self, descendants):
-        rv = np.zeros((len(self.nodes), len(self.nodes)), dtype = bool)
-        for node, desc in descendants.items():
-            for d in desc:
-                if d in self.go2idx:
-                    rv[self.go2idx[node], self.go2idx[d]] = True
-        return rv
-    def _init_ancestors(self, ancestors):
-        rv = {}
-        for node in ancestors:
-            rv[self.go2idx[node]] = set([self.go2idx[n] for n in ancestors[node] if n in self.go2idx and node != n])
-        return rv
+    def _init_IA(self):
+        ia = self.GO.weights
+        weights = np.zeros(len(self.go2idx), dtype = float)
+        for key, value in ia.items():
+            weights[self.go2idx[key]] = value
+        return weights
     @staticmethod
     def _train_val_split(arr, idx):
         assert isinstance(arr, list)
         train_arr = [arr[i] for i,j in enumerate(idx) if j]
         val_arr = [arr[i] for i,j in enumerate(idx) if not j]
         return train_arr, val_arr
-    def get_edge_index(self):
-        adj = 2*np.identity(len(self.nodes))
-        for source, dest in self.GO.Graph.edges():
-            adj[self.go2idx[source], self.go2idx[dest]] = 1
-        adj = torch.tensor(adj, dtype = torch.float)
-        return adj
-
-class GraphDataset(Dataset):
-    def __init__(self, edges, descendants, names, embeddings, queries, labels = None):
-        self.names = names
-        self.edges = edges
-        self.desc = descendants
-        self.embeddings = embeddings
-        self.labels = labels
-        self.queries = queries
-        self.train = True if self.labels is not None else False
-    def fill(self, predictions):
-        rv = []
-        for pred in predictions:
-            res = np.amax(self.desc*pred, axis = -1)
-            rv.append(res)
-        return np.array(rv)
-    def __len__(self):
-        return len(self.names)
-    def __getitem__(self, idx):
-        if idx >= len(self):
-            raise IndexError(f"{idx} is greater than dataset size {len(self)}")
-        name = self.names[idx]
-        embeds = torch.tensor(self.embeddings[idx], dtype=torch.float)
-        if not self.train:
-            return name, self.edges, embeds, None
-        parent, child = self.queries[idx][np.random.randint(len(self.queries[idx]))]
-        parent_mask = self.edges[parent].clone().detach()
-        parent_mask[parent] = 0
-        label = torch.tensor(self.labels[idx], dtype = torch.float)
-        return name, self.edges, embeds, parent_mask, torch.tensor(child, dtype=torch.long), label
-    
-def main():
-    train_dataset, val_dataset = GetDataset(subgraph="CC", train = True).get()
-    dataloader = DataLoader(train_dataset, batch_size = 32, shuffle = True)
-    for batch in dataloader:
-        print(batch)
-
-if __name__ == "__main__":
-    main()

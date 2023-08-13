@@ -12,23 +12,6 @@ class average_pool(nn.Module):
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
         return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
-class GraphConv(nn.Module):
-    def __init__(self, in_features, out_features):
-        super().__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = nn.Linear(in_features = in_features, out_features = out_features, bias = False)
-        self.bias = Parameter(torch.FloatTensor(out_features))
-        self.reset_parameters()
-    def reset_parameters(self):
-        stdv = 1.0/sqrt(self.out_features)
-        self.weight.reset_parameters()
-        self.bias.data.uniform_(-stdv, stdv)
-    def forward(self, input, adj):
-        support = self.weight(input)
-        output = torch.matmul(adj, support)
-        return output + self.bias
-
 class EMBNet(nn.Module):
     def __init__(self, hidden_dim):
         super().__init__()
@@ -50,11 +33,18 @@ class EMBNet(nn.Module):
         y = self.bn3(y)
         return y
 
-        
-
 class ClassificationLoss(nn.Module):
     def __init__(self):
         super().__init__()
     def forward(self, targets, predicts):
-        bce = targets * torch.log(predicts + 1e-10) + (1-targets.int()) * torch.log(1-predicts+1e-10)
+        bce = targets * torch.log(predicts + 1e-10) + (1-targets) * torch.log(1-predicts+1e-10)
         return -torch.mean(bce)
+
+class ContrastiveLoss(torch.nn.Module):
+    def __init__(self, margin=1.0):
+        super(ContrastiveLoss, self).__init__()
+        self.margin = margin
+    def forward(self, x0, x1, y):
+        dist = torch.sum(torch.square(x0-x1), 1)
+        loss = (1-y)*dist + y*torch.square(torch.clamp(self.margin - torch.sqrt(dist), min=0.0))
+        return torch.mean(loss)
