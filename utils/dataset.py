@@ -47,15 +47,19 @@ class GetDataset:
         self.weights = self._init_IA()
     def get_train_val(self):
         self.train_labels = self._get_labels()
-        self.X = self._get_embeddings(mode = "train")
+        X = self._get_embeddings(mode = "train")
         queries, keys, sim = self._get_train_pairs()
         idx = np.random.binomial(1, config_dict['train']['TRAIN_SIZE'], size = len(queries))
         train_queries, val_queries = self._train_val_split(queries, idx)
         train_keys, val_keys = self._train_val_split(keys, idx)
         train_sim, val_sim = self._train_val_split(sim, idx)
-        train_dataset = PairDataset(self.X, train_queries, self.train_labels, train_keys, train_sim)
-        val_dataset = PairDataset(self.X, val_queries, self.train_labels, val_keys, val_sim)
+        train_dataset = PairDataset(X, train_queries, self.train_labels, train_keys, train_sim)
+        val_dataset = PairDataset(X, val_queries, self.train_labels, val_keys, val_sim)
         return train_dataset, val_dataset
+    def get_test(self):
+        X = self._get_embeddings(mode = "test")
+        queries = list(X.keys())
+        return PairDataset(X, queries)
     def _get_train_pairs(self):
         low, high = config_dict['dataset']['CUTOFF_LOW'], config_dict['dataset']['CUTOFF_HIGH'] 
         queries, keys, sim = [],[], []
