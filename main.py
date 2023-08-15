@@ -62,7 +62,7 @@ def Predict(subgraph):
     idx2go = dataset.idx2go
     res = []
     for key, value in predictions.items():
-        for idx in np.where(value>0)[0]:
+        for idx in np.where(value>0.2)[0]:
             go = idx2go[idx]
             score = value[idx]
             res.append(f"{key}\tGO:{go:07d}\t{score:.3f}\n")
@@ -77,12 +77,14 @@ def Train(subgraph):
     train(model, get_path(dataset.subgraph), dataset)
 
 def main():
-    subgraph = "CC"
+    #subgraph = "CC"
     #Train(subgraph)
     #Create(subgraph)
-    Validate(subgraph)
-    Predict(subgraph)
+    #Validate(subgraph)
+    #Predict(subgraph)
     subgraph = "BP"
+    Train(subgraph)
+    Create(subgraph)
     Validate(subgraph)
     Predict(subgraph)
 

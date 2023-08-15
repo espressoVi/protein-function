@@ -20,8 +20,8 @@ class EMBNet(nn.Module):
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 512)
         self.bn2 = nn.BatchNorm1d(512)
-        self.fc4 = nn.Linear(512, 128)
-        self.bn3 = nn.BatchNorm1d(128)
+        self.fc4 = nn.Linear(512, 256)
+        self.bn3 = nn.BatchNorm1d(256)
     def forward(self, embeddings):
         y = self.fc1(embeddings.float())
         y1 = self.bn1(y)

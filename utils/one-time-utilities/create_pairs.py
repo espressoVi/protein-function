@@ -22,7 +22,7 @@ class GetDataset:
             if name in diamond:
                 database = diamond[name].union(set(np.random.choice(list(self.train_labels.keys()), size = 10, replace = False)))
             else:
-                database = set(np.random.choice(list(self.train_labels.keys()), size = 5, replace = False))
+                database = set(np.random.choice(list(self.train_labels.keys()), size = 10, replace = False))
             matches = self.compute_similarity(name, database)
             for key, value in matches.items():
                 final_key = f"{min(name, key)}\t{max(name, key)}\t"
