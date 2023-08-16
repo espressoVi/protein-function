@@ -25,7 +25,7 @@ class GetDataset:
         train_embeddings = np.array([train_embeddings[name] for name in train_names])
 
         test_embeddings = self._get_embeddings(mode = "test")
-        test_names = list(set(test_embeddings.keys()) - set(train_names))
+        test_names = list(self._relevant())
         test_embeddings = np.array([test_embeddings[name] for name in test_names])
 
         train_dataset = FeatureDataset(train_names, train_embeddings, train_labels)
@@ -56,6 +56,10 @@ class GetDataset:
             idx2go[idx] = node
             go2idx[node] = idx
         return idx2go,go2idx
+    def _relevant(self):
+        with open(f"./data/test/{self.subgraph}_list.tsv","r") as f:
+            rel = set([i.rstrip() for i in f.readlines()])
+        return rel
 
 class FeatureDataset:
     def __init__(self, names, embeddings, labels = None):

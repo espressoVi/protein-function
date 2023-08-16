@@ -14,7 +14,7 @@ def main(subgraph):
     idx2go = dataset.idx2go
     res = []
     for key, value in predictions.items():
-        for idx in np.where(value>0)[0]:
+        for idx in np.where(value>=3.0/7)[0]:
             go = idx2go[idx]
             score = value[idx]
             res.append(f"{key}\tGO:{go:07d}\t{score:.3f}\n")
