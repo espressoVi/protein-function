@@ -6,9 +6,9 @@ import toml
 config_dict = toml.load("config.toml")
 
 class KNN:
-    def __init__(self, train_dataset, K = 5):
+    def __init__(self, train_dataset):
         self.train_dataset = train_dataset
-        self.K = K
+        self.K = config_dict['dataset']['K']
         self.cpu = 24
         assert len(self.train_dataset) >= self.K
     def _predict(self, queries):

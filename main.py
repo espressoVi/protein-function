@@ -5,7 +5,7 @@ import numpy as np
 from utils.dataset import GetDataset
 from utils.knn import FeatureDataset, KNN
 from models.model import Similarity
-from models.parts import EMBNet
+from models.parts import ESM
 from train_test import train, create_dataset
 import toml
 from utils.metric import Metrics
@@ -16,7 +16,7 @@ def get_path(subgraph):
     return f"{config_dict['files']['MODEL_FILE']}{subgraph}.pth"
 
 def create_database(dataset, subgraph, tag):
-    model = EMBNet(1280)
+    model = ESM()
     model.load_state_dict(torch.load(get_path(subgraph)))
     model.to(torch.device("cuda"))
     write_to = os.path.join(config_dict['files']['DATABASE'], f"{subgraph}_{tag}.pkl")
@@ -52,8 +52,9 @@ def Validate(subgraph):
 
 def Predict(subgraph):
     dataset = GetDataset(subgraph = subgraph)
-    train_dataset, val_dataset = dataset.get_train_val()
+    train_dataset, _ = dataset.get_train_val()
     test_dataset = dataset.get_test()
+    create_database(train_dataset, subgraph, "train")
     create_database(test_dataset, subgraph, "test")
     train_database = load_database(train_dataset, subgraph, "train")
     test_database = load_database(test_dataset, subgraph, "test")
@@ -62,7 +63,7 @@ def Predict(subgraph):
     idx2go = dataset.idx2go
     res = []
     for key, value in predictions.items():
-        for idx in np.where(value>0.2)[0]:
+        for idx in np.where(value>0)[0]:
             go = idx2go[idx]
             score = value[idx]
             res.append(f"{key}\tGO:{go:07d}\t{score:.3f}\n")
@@ -82,10 +83,9 @@ def main():
     #Create(subgraph)
     #Validate(subgraph)
     #Predict(subgraph)
-    subgraph = "BP"
-    Train(subgraph)
-    Create(subgraph)
-    Validate(subgraph)
+    subgraph = "CC"
+    #Train(subgraph)
+    #Validate(subgraph)
     Predict(subgraph)
 
 if __name__ == "__main__":

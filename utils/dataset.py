@@ -27,16 +27,19 @@ class PairDataset(Dataset):
         if self.train:
             query = self.queries[idx]
             key = self.keys[idx]
-            query_feature = torch.tensor(self.X[query], dtype = torch.float)
-            key_feature = torch.tensor(self.X[key], dtype = torch.float)
+            query_feature_id = torch.tensor(self.X[query]['input_ids'], dtype = torch.long)
+            query_feature_mask = torch.tensor(self.X[query]['attention_mask'], dtype = torch.long)
+            key_feature_id = torch.tensor(self.X[key]['input_ids'], dtype = torch.long)
+            key_feature_mask = torch.tensor(self.X[key]['attention_mask'], dtype = torch.long)
             sim = torch.tensor(self.similarity[idx], dtype = torch.float)
             query_label = torch.tensor(self.labels[query], dtype = bool)
             key_label = torch.tensor(self.labels[key], dtype = bool)
-            return query, query_feature, key_feature, sim, query_label, key_label
+            return query, query_feature_id, query_feature_mask, key_feature_id, key_feature_mask, sim, query_label, key_label
         else:
             query = self.queries[idx]
-            query_feature = torch.tensor(self.X[query], dtype = torch.float)
-            return query, query_feature
+            query_feature_id = torch.tensor(self.X[query]['input_ids'], dtype = torch.long)
+            query_feature_mask = torch.tensor(self.X[query]['input_ids'], dtype = torch.long)
+            return query, query_feature_id, query_feature_mask
 
 class GetDataset:
     def __init__(self, subgraph, train=True):
@@ -84,8 +87,13 @@ class GetDataset:
         pr = intersection/pred if pred!=0 else 0
         rc = intersection/gt if gt!=0 else 0
         return (2*pr*rc)/(pr+rc) if (pr+rc) !=0 else 0
-    def _get_embeddings(self, mode = 'train'):
+    def _get_embeddings_frozen(self, mode = 'train'):
         file = files['EMBEDS'] if mode == 'train' else files['EMBEDS_TEST']
+        with open(file, 'rb') as f:
+            emb = pickle.load(f)
+        return emb
+    def _get_embeddings(self, mode = 'train'):
+        file = files['TRAIN_TOKENS'] if mode == 'train' else files['TEST_TOKENS']
         with open(file, 'rb') as f:
             emb = pickle.load(f)
         return emb

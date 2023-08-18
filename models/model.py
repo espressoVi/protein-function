@@ -2,7 +2,7 @@
 import torch,toml
 import torch.nn as nn
 import torch.nn.functional as F
-from models.parts import average_pool, EMBNet, ContrastiveLoss
+from models.parts import average_pool, EMBNet, ContrastiveLoss, ESM
 
 config_dict = toml.load("config.toml")
 model_param = config_dict['model']
@@ -12,12 +12,13 @@ class Similarity(nn.Module):
         super().__init__()
         hidden_dim = model_param['HIDDEN_DIM']
         self.node_number = node_number
-        self.emb = EMBNet(hidden_dim)
+        self.esm = ESM()
         self.margin = 1.0
         self.loss = ContrastiveLoss(self.margin)
-    def forward(self, query_features, key_features = None, sims = None, query_labels = None, key_labels = None):
-        x = self.emb(query_features)
-        y = self.emb(key_features)
+    def forward(self, query_feature_ids, query_feature_masks, key_feature_ids, key_feature_masks, 
+                sims = None, query_labels = None, key_labels = None):
+        x = self.esm(query_feature_ids, query_feature_masks)
+        y = self.esm(key_feature_ids, key_feature_masks)
         predicts = torch.sqrt(torch.sum(torch.square(x - y), dim = -1))
         if not self.training:
             return predicts, x

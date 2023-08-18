@@ -4,6 +4,9 @@ import torch,toml
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from transformers import AutoModel
+
+config = toml.load("config.toml")
 
 class average_pool(nn.Module):
     def __init__(self):
@@ -11,6 +14,15 @@ class average_pool(nn.Module):
     def forward(self, embeddings, attention_mask):
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
         return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+class ESM(nn.Module):
+    def __init__(self,):
+        super().__init__()
+        self.base = AutoModel.from_pretrained(config['model']['PRETRAINED'])
+        self.pool = average_pool()
+    def forward(self, input_ids, attention_masks):
+        embeddings = self.base(input_ids, attention_mask = attention_masks)['last_hidden_state']
+        return self.pool(embeddings, attention_masks)
 
 class EMBNet(nn.Module):
     def __init__(self, hidden_dim):
@@ -45,6 +57,6 @@ class ContrastiveLoss(torch.nn.Module):
         super(ContrastiveLoss, self).__init__()
         self.margin = margin
     def forward(self, x0, x1, y):
-        dist = torch.sum(torch.square(x0-x1), 1)
-        loss = (1-y)*dist + y*torch.square(torch.clamp(self.margin - torch.sqrt(dist), min=0.0))
+        dist = torch.nn.functional.pairwise_distance(x1, x0)
+        loss = (y) * torch.square(dist) + (1-y) * torch.square(torch.clamp(self.margin - dist, min=0.0))
         return torch.mean(loss)

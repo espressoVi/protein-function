@@ -3,10 +3,13 @@ name = "Kaggle Protein"
 [files]
 TRAIN_SEQ = "./data/train/train_sequences.fasta"
 TEST_SEQ = "./data/test/testsuperset.fasta"
+TRAIN_TOKENS = "./data/train/tokenized_train.pkl"
+TEST_TOKENS = "./data/test/tokenized_test.pkl"
 IA = "./data/extras/IA.txt"
 TRAIN_LAB = "./data/train/train_terms.tsv"
-DIAMOND = "./data/train/diamond.tsv"
+
 TRAIN_PAIRS = "./data/train/train_"
+DIAMOND = "./data/train/diamond.tsv"
 EMBEDS =      "./data/embeddings/ESM_embeds_train.pkl"
 EMBEDS_TEST = "./data/embeddings/ESM_embeds_test.pkl"
 MODEL_FILE = "./models/SIM_"
@@ -19,16 +22,18 @@ NAMESPACES = {'BP'='biological_process', 'MF'='molecular_function', 'CC'='cellul
 MIN_PROTEINS = 150
 
 [dataset]
-MAX_SEQ_LEN = 2048
-CUTOFF_HIGH = 0.9
+MAX_SEQ_LEN = 1024
+CUTOFF_HIGH = 0.8
 CUTOFF_LOW = 0.1
+K = 7
 
 [train]
 TRAIN_SIZE = 0.9
-MINI_BATCH_SIZE = 128
-TEST_BATCH_SIZE = 128
-LR = 1e-3
-EPOCHS = 20
+MINI_BATCH_SIZE = 4
+TEST_BATCH_SIZE = 8
+LR = 1e-4
+EPOCHS = 1
 
 [model]
 HIDDEN_DIM = 1280
+PRETRAINED = "facebook/esm2_t30_150M_UR50D" 

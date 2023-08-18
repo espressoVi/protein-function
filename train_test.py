@@ -15,7 +15,7 @@ device = torch.device("cuda")
 def train(model, save_path, dataset,):
     train_dataset, val_dataset = dataset.get_train_val()
     epochs = train_param['EPOCHS']
-    optimizer = AdamW(model.parameters(), lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-4)
+    optimizer = AdamW(model.parameters(), lr = train_param['LR'], eps = 1e-8, weight_decay = 1e-5)
     scheduler = Scheduler(optimizer, factor = 0.1, patience = 1)
     train_dataloader = DataLoader(train_dataset, batch_size = train_param['MINI_BATCH_SIZE'], shuffle = True, )
     counter, train_loss, loss, = 1, 0.0,0.0
@@ -33,10 +33,12 @@ def train(model, save_path, dataset,):
             counter += 1
             epoch_iterator.set_description(f"Epoch [{epoch_number+1}/{epochs}] Loss : {train_loss/counter:.6f}")
             epoch_iterator.refresh()
+            if (i+1)%1000 == 0:
+                torch.save(model.esm.state_dict(), save_path)
+                print("Checkpoint saved")
         val_score = validate(model, val_dataset)
         scheduler.step(val_score)
         print(f"Val Metric : {val_score:.6f}")
-    torch.save(model.emb.state_dict(), save_path)
 
 def validate(model, val_dataset):
     distances, similarity = evaluate(model, val_dataset)
@@ -62,7 +64,7 @@ def create_dataset(model, dataset, save_path):
     predictions, names = [],[]
     model.eval()
     for i,batch in enumerate(tqdm(eval_dataloader, desc = "Evaluating")):
-        input = {"embeddings":batch[1].to(device)}
+        input = {"input_ids":batch[1].to(device), "attention_masks":batch[2].to(device)}
         with torch.no_grad():
             features = model(**input)
             predictions.extend(features.detach().cpu().numpy())
